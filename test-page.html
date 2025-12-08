@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBC Chain Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left-color: #4CAF50;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .contract-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        code {
+            background: #263238;
+            color: #aed581;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 NBC Chain Uniswap 连接测试</h1>
+        
+        <div class="info">
+            <h3>📋 部署的合约地址</h3>
+            <p><strong>WETH:</strong> <code>0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC</code></p>
+            <p><strong>Factory:</strong> <code>0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793</code></p>
+            <p><strong>Router:</strong> <code>0x3d53f590c82a61f85e6B1f0813e509AEAA0b4991</code></p>
+            <p><strong>Multicall:</strong> <code>0xF396bb272c5f11EF5E172bAEEC49e9cC895c589a</code></p>
+        </div>
+
+        <div class="info">
+            <h3>🌐 网络配置</h3>
+            <p><strong>RPC URL:</strong> <code>http://206.238.196.207:9944</code></p>
+            <p><strong>Chain ID:</strong> <code>1281</code></p>
+        </div>
+
+        <button onclick="testRPCConnection()">测试 RPC 连接</button>
+        <button onclick="connectWallet()">连接 MetaMask</button>
+        <button onclick="addNBCNetwork()">添加 NBC 网络到 MetaMask</button>
+
+        <div id="result"></div>
+
+        <div class="contract-info">
+            <h3>📝 使用说明</h3>
+            <ol>
+                <li>点击 "添加 NBC 网络到 MetaMask" 按钮</li>
+                <li>在 MetaMask 中批准添加网络</li>
+                <li>点击 "连接 MetaMask" 连接钱包</li>
+                <li>访问 <a href="http://localhost:3001" target="_blank">http://localhost:3001</a> 使用 Uniswap 界面</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const RPC_URL = 'http://206.238.196.207:9944';
+        const CHAIN_ID = '0x501'; // 1281 in hex
+
+        async function testRPCConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info">⏳ 正在测试 RPC 连接...</div>';
+
+            try {
+                const response = await fetch(RPC_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_chainId',
+                        params: [],
+                        id: 1
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.result) {
+                    const chainId = parseInt(data.result, 16);
+                    resultDiv.innerHTML = `
+                        <div class="info success">
+                            ✅ RPC 连接成功！<br>
+                            Chain ID: ${chainId} (${data.result})
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="info error">
+                            ❌ RPC 响应异常<br>
+                            ${JSON.stringify(data)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="info error">
+                        ❌ RPC 连接失败<br>
+                        错误: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function addNBCNetwork() {
+            if (typeof window.ethereum === 'undefined') {
+                alert('请先安装 MetaMask!');
+                return;
+            }
+
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: CHAIN_ID,
+                        chainName: 'NBC Chain',
+                        nativeCurrency: {
+                            name: 'DEV',
+                            symbol: 'DEV',
+                            decimals: 18
+                        },
+                        rpcUrls: [RPC_URL],
+                        blockExplorerUrls: null
+                    }]
+                });
+                
+                document.getElementById('result').innerHTML = `
+                    <div class="info success">
+                        ✅ NBC 网络已添加到 MetaMask！
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div class="info error">
+                        ❌ 添加网络失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                alert('请先安装 MetaMask!');
+                return;
+            }
+
+            try {
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+                
+                const chainId = await window.ethereum.request({ 
+                    method: 'eth_chainId' 
+                });
+
+                document.getElementById('result').innerHTML = `
+                    <div class="info success">
+                        ✅ 钱包已连接！<br>
+                        地址: <code>${accounts[0]}</code><br>
+                        Chain ID: ${parseInt(chainId, 16)} (${chainId})
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div class="info error">
+                        ❌ 连接失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

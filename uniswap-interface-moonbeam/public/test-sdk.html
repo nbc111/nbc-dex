@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDK Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Moonbeam Uniswap SDK 测试</h1>
+    <div id="results"></div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(message, isError = false) {
+            const div = document.createElement('div');
+            div.className = `status ${isError ? 'error' : 'success'}`;
+            div.textContent = message;
+            resultsDiv.appendChild(div);
+        }
+        
+        function addCode(title, code) {
+            const h3 = document.createElement('h3');
+            h3.textContent = title;
+            resultsDiv.appendChild(h3);
+            
+            const pre = document.createElement('pre');
+            pre.textContent = code;
+            resultsDiv.appendChild(pre);
+        }
+        
+        // 测试基本的 JavaScript 功能
+        addResult('✓ JavaScript 正常运行');
+        
+        // 检查控制台错误
+        window.addEventListener('error', function(e) {
+            addResult(`✗ 错误: ${e.message}`, true);
+            addCode('错误详情', `${e.filename}:${e.lineno}:${e.colno}\n${e.error?.stack || ''}`);
+        });
+        
+        addResult('✓ 测试页面加载成功');
+        addResult('请打开浏览器控制台查看主应用的错误信息');
+    </script>
+</body>
+</html>
