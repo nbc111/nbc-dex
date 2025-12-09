@@ -98,7 +98,8 @@
     "build": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject",
-    "lint": "eslint 'src/**/*.{js,jsx,ts,tsx}'"
+    "lint": "eslint 'src/**/*.{js,jsx,ts,tsx}'",
+    "postinstall": "cd node_modules/@uniswap/token-lists && npm install && npm run build && node -e \"require('fs').copyFileSync('src/tokenlist.schema.json','dist/tokenlist.schema.json')\""
   },
   "browserslist": {
     "production": [
