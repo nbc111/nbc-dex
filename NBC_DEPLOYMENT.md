@@ -13,7 +13,7 @@
 
 ### 网络配置
 
-- **RPC URL**: `http://206.238.196.207:9944`
+- **RPC URL**: `https://rpc.nbcex.com`
 - **Chain ID**: `1281`
 - **部署账户**: `0x1A0370aE087A089eC5895A0744e3B750993A24a8`
 
@@ -28,7 +28,7 @@
 在 MetaMask 中添加 NBC 网络：
 
 - **网络名称**: NBC Chain
-- **RPC URL**: `http://206.238.196.207:9944`
+- **RPC URL**: `https://rpc.nbcex.com`
 - **Chain ID**: `1281`
 - **货币符号**: DEV
 - **区块浏览器**: (如果有的话)
@@ -62,7 +62,7 @@ SDK 已更新为使用 NBC 链部署的合约地址：
 ```
 NODE_OPTIONS=--openssl-legacy-provider
 PORT=3001
-REACT_APP_NETWORK_URL=http://206.238.196.207:9944
+REACT_APP_NETWORK_URL=https://rpc.nbcex.com
 REACT_APP_CHAIN_ID=1281
 ```
 
@@ -71,7 +71,7 @@ REACT_APP_CHAIN_ID=1281
 Hardhat 配置文件中的 NBC 网络：
 ```javascript
 nbc: {
-  url: 'http://206.238.196.207:9944',
+  url: 'https://rpc.nbcex.com',
   accounts: ['0x426231b32113022e22bfc31dc90c15561b6b32ae2dc1d8f0bfaf39c638664a8f'],
   chainId: 1281,
   gasPrice: 'auto',

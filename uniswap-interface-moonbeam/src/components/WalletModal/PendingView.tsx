@@ -82,7 +82,11 @@ export default function PendingView({
         <LoadingWrapper>
           {error ? (
             <ErrorGroup>
-              <div>Error connecting.</div>
+              <div>
+                {connector === injected && !window?.ethereum?.isMetaMask
+                  ? 'MetaMask not detected. Please install MetaMask extension.'
+                  : 'Error connecting. Please check MetaMask and try again.'}
+              </div>
               <ErrorButton
                 onClick={() => {
                   setPendingError(false)
@@ -95,7 +99,7 @@ export default function PendingView({
           ) : (
             <>
               <StyledLoader />
-              Initializing...
+              {connector === injected ? 'Waiting for MetaMask...' : 'Initializing...'}
             </>
           )}
         </LoadingWrapper>

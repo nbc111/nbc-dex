@@ -183,14 +183,51 @@ export default function WalletModal({
       connector.walletConnectProvider = undefined
     }
 
-    connector &&
-      activate(connector, undefined, true).catch(error => {
-        if (error instanceof UnsupportedChainIdError) {
-          activate(connector) // a little janky...can't use setError because the connector isn't set
-        } else {
+    if (connector) {
+      // 对于 MetaMask，确保 window.ethereum 存在
+      if (connector === injected) {
+        if (!window.ethereum) {
           setPendingError(true)
+          console.error('MetaMask not detected. Please install MetaMask extension.')
+          return
         }
-      })
+        // 检查是否是 MetaMask
+        if (name === 'MetaMask' && !window.ethereum.isMetaMask) {
+          setPendingError(true)
+          console.error('MetaMask not detected. Please use MetaMask extension.')
+          return
+        }
+        console.log('Attempting to connect to MetaMask...', {
+          isMetaMask: window.ethereum.isMetaMask,
+          ethereum: !!window.ethereum
+        })
+      }
+      
+      // 激活连接器
+      activate(connector, undefined, true)
+        .then(() => {
+          console.log('Wallet connected successfully')
+        })
+        .catch(error => {
+          console.error('Error activating connector:', error)
+          if (error instanceof UnsupportedChainIdError) {
+            console.log('Unsupported chain ID, retrying...')
+            activate(connector) // a little janky...can't use setError because the connector isn't set
+          } else {
+            setPendingError(true)
+            // 如果是用户拒绝，提供更友好的提示
+            if (error?.code === 4001 || error?.message?.includes('User rejected') || error?.message?.includes('user rejected')) {
+              console.log('User rejected the connection request')
+            } else {
+              console.error('Connection error details:', {
+                code: error?.code,
+                message: error?.message,
+                error
+              })
+            }
+          }
+        })
+    }
   }
 
   // close wallet modal if fortmatic modal is active
