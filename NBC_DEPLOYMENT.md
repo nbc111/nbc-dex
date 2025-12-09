@@ -30,7 +30,7 @@
 - **网络名称**: NBC Chain
 - **RPC URL**: `https://rpc.nbcex.com`
 - **Chain ID**: `1281`
-- **货币符号**: DEV
+- **货币符号**: NBC
 - **区块浏览器**: (如果有的话)
 
 ### 3. 连接钱包
@@ -110,7 +110,7 @@ npx hardhat run --network nbc scripts/deploy-factory.js
 
 1. **私钥安全**: 请妥善保管私钥，不要泄露给他人
 2. **测试环境**: 这是测试环境部署，请勿用于生产环境
-3. **Gas 费用**: 确保部署账户有足够的 DEV 代币支付 gas 费用
+3. **Gas 费用**: 确保部署账户有足够的 NBC 代币支付 gas 费用
 4. **网络连接**: 确保 RPC 节点稳定可访问
 
 ## 📞 支持
