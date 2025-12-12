@@ -27,6 +27,12 @@
     -->
 
     <title>Moonbeam Uniswap</title>
+    <script>
+      // Polyfill for process
+      if (typeof process === 'undefined') {
+        window.process = { env: {}, browser: true };
+      }
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

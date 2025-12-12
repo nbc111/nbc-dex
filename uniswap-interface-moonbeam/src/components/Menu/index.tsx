@@ -101,7 +101,7 @@ export default function Menu() {
             <MessageCircle size={14} />
             {t('discord')}
           </MenuItem>
-          <MenuItem id="link" href="https://github.com/PureStake/moonbeam">
+          <MenuItem id="link" href="https://github.com/nbc111/nbc-dex">
             <Code size={14} />
             {t('code')}
           </MenuItem>
