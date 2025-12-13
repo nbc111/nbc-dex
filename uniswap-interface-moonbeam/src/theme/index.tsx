@@ -1,13 +1,12 @@
-//import { transparentize } from 'polished'
-//import React, { useMemo } from 'react
-import React from 'react'
+import { transparentize } from 'polished'
+import React, { useMemo } from 'react'
 import styled, {
   ThemeProvider as StyledComponentsThemeProvider,
   createGlobalStyle,
   css,
   DefaultTheme
 } from 'styled-components'
-//import { useIsDarkMode } from '../state/user/hooks'
+import { useIsDarkMode } from '../state/user/hooks'
 import { Text, TextProps } from 'rebass'
 import { Colors } from './styled'
 import BackgroundImage from '../assets/images/background-min.png'
@@ -36,44 +35,44 @@ const mediaWidthTemplates: { [width in keyof typeof MEDIA_WIDTHS]: typeof css } 
 const white = '#FFFFFF'
 const black = '#000000'
 
-export function colors(): Colors {
+export function colors(darkMode: boolean): Colors {
   return {
     // base
     white,
     black,
 
     // text
-    text1: '#FFFFFF',
-    text2: '#C3C5CB',
-    text3: '#6C7284',
-    text4: '#565A69',
-    text5: '#2C2F36',
+    text1: darkMode ? '#FFFFFF' : '#000000',
+    text2: darkMode ? '#C3C5CB' : '#565A69',
+    text3: darkMode ? '#6C7284' : '#888D9B',
+    text4: darkMode ? '#565A69' : '#C3C5CB',
+    text5: darkMode ? '#2C2F36' : '#EDEEF2',
 
     // backgrounds / greys
-    bg1: '#212429',
-    bg2: '#2C2F36',
-    bg3: '#40444F',
-    bg4: '#565A69',
-    bg5: '#6C7284',
+    bg1: darkMode ? '#212429' : '#FFFFFF',
+    bg2: darkMode ? '#2C2F36' : '#F7F8FA',
+    bg3: darkMode ? '#40444F' : '#EDEEF2',
+    bg4: darkMode ? '#565A69' : '#CED0D9',
+    bg5: darkMode ? '#6C7284' : '#888D9B',
 
     //specialty colors
-    modalBG: 'rgba(0,0,0,.425)',
-    advancedBG: 'rgba(0,0,0,0.1)',
+    modalBG: darkMode ? 'rgba(0,0,0,.425)' : 'rgba(0,0,0,0.3)',
+    advancedBG: darkMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.6)',
 
     //primary colors
-    primary1: '#2172E5',
-    primary2: '#3680E7',
-    primary3: '#4D8FEA',
-    primary4: '#376bad70',
-    primary5: '#153d6f70',
+    primary1: darkMode ? '#2172E5' : '#FF007A',
+    primary2: darkMode ? '#3680E7' : '#FF1A8C',
+    primary3: darkMode ? '#4D8FEA' : '#FF3399',
+    primary4: darkMode ? '#376bad70' : '#FF007A70',
+    primary5: darkMode ? '#153d6f70' : '#FF007A10',
 
     // color text
-    primaryText1: '#6da8ff',
+    primaryText1: darkMode ? '#6da8ff' : '#FF007A',
 
     // secondary colors
-    secondary1: '#2172E5',
-    secondary2: '#17000b26',
-    secondary3: '#17000b26',
+    secondary1: darkMode ? '#2172E5' : '#FF007A',
+    secondary2: darkMode ? '#17000b26' : '#FF007A26',
+    secondary3: darkMode ? '#17000b26' : '#FF007A26',
 
     // other
     red1: '#FF6871',
@@ -81,16 +80,12 @@ export function colors(): Colors {
     green1: '#27AE60',
     yellow1: '#FFE270',
     yellow2: '#F3841E'
-
-    // dont wanna forget these blue yet
-    // blue4: darkMode ? '#153d6f70' : '#C4D9F8',
-    // blue5: darkMode ? '#153d6f70' : '#EBF4FF',
   }
 }
 
-export function theme(): DefaultTheme {
+export function theme(darkMode: boolean): DefaultTheme {
   return {
-    ...colors(),
+    ...colors(darkMode),
 
     grids: {
       sm: 8,
@@ -99,7 +94,7 @@ export function theme(): DefaultTheme {
     },
 
     //shadows
-    shadow1: '#000',
+    shadow1: darkMode ? '#000' : '#2F80ED',
 
     // media queries
     mediaWidth: mediaWidthTemplates,
@@ -117,9 +112,9 @@ export function theme(): DefaultTheme {
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  //const darkMode = useIsDarkMode()
+  const darkMode = useIsDarkMode()
 
-  const themeObject = theme()
+  const themeObject = useMemo(() => theme(darkMode), [darkMode])
 
   return <StyledComponentsThemeProvider theme={themeObject}>{children}</StyledComponentsThemeProvider>
 }
@@ -204,14 +199,15 @@ html {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 `
-//background-color: ${({ theme }) => theme.bg2};
 export const ThemedGlobalStyle = createGlobalStyle`
 html {
   color: ${({ theme }) => theme.text1};
-  background: url(${BackgroundImage})
+  background-color: ${({ theme }) => theme.bg2};
+  background-image: url(${BackgroundImage});
+  background-repeat: no-repeat;
+  background-position: 0 -30vh;
+  background-size: cover;
 }
-
-
 `
 /* 
 body {
