@@ -5,7 +5,7 @@ import { Text } from 'rebass'
 
 import styled from 'styled-components'
 
-import Logo from '../../assets/images/mainlogo.png'
+import Logo from '../../assets/images/mainlogo.svg'
 import { useActiveWeb3React } from '../../hooks'
 //import { useDarkModeManager } from '../../state/user/hooks'
 import { useETHBalances } from '../../state/wallet/hooks'
