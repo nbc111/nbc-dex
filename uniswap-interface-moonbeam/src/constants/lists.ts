@@ -1,4 +1,4 @@
-// the DCTDEX Default token list lives here
+// the Nbc Uniswap Default token list lives here
 export const DEFAULT_TOKEN_LIST_URL =
   'https://raw.githubusercontent.com/PureStake/moonbeam-uniswap/main/uniswap-interface-moonbeam/src/tokens.json'
 
