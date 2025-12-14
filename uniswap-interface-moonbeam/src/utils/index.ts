@@ -8,6 +8,18 @@ import { ROUTER_ADDRESS } from '../constants'
 import { ChainId, JSBI, Percent, Token, CurrencyAmount, Currency, DEV } from 'moonbeamswap'
 import { TokenAddressMap } from '../state/lists/hooks'
 
+/**
+ * Get the native currency symbol for a given chain ID
+ * @param chainId The chain ID
+ * @returns The native currency symbol (NBC for STANDALONE, DEV for others)
+ */
+export function getNativeCurrencySymbol(chainId?: ChainId): string {
+  if (chainId === ChainId.STANDALONE) {
+    return 'NBC'
+  }
+  return 'DEV'
+}
+
 // returns the checksummed address if the address is valid, otherwise returns false
 export function isAddress(value: any): string | false {
   try {

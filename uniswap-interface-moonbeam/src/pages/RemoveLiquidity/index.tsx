@@ -2,6 +2,7 @@ import { splitSignature } from '@ethersproject/bytes'
 import { Contract } from '@ethersproject/contracts'
 import { TransactionResponse } from '@ethersproject/providers'
 import { Currency, currencyEquals, DEV, Percent, WDEV } from 'moonbeamswap'
+import { getNativeCurrencySymbol } from '../../utils'
 import React, { useCallback, useContext, useMemo, useState } from 'react'
 import { ArrowDown, Plus } from 'react-feather'
 import ReactGA from 'react-ga'
@@ -574,7 +575,7 @@ export default function RemoveLiquidity({
                               currencyA && currencyEquals(currencyA, WDEV[chainId]) ? 'ETH' : currencyIdA
                             }/${currencyB && currencyEquals(currencyB, WDEV[chainId]) ? 'ETH' : currencyIdB}`}
                           >
-                            Receive DEV
+                            Receive {getNativeCurrencySymbol(chainId)}
                           </StyledInternalLink>
                         ) : null}
                       </RowBetween>

@@ -333,7 +333,7 @@ export default function WalletModal({
           <HeaderRow>{error instanceof UnsupportedChainIdError ? 'Wrong Network' : 'Error connecting'}</HeaderRow>
           <ContentWrapper>
             {error instanceof UnsupportedChainIdError ? (
-              <h5>Please connect to the appropriate network. Supported networks: Moonbase Alpha (1287), Moonriver (1285), Moonbeam (1284), or your custom network.</h5>
+              <h5>Please connect to the appropriate network. Supported networks: NBC Chain (1281), Moonbase Alpha (1287), Moonrock (1286), Moonshadow (1288), or your custom network.</h5>
             ) : (
               'Error connecting. Try refreshing the page.'
             )}
