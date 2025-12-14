@@ -57,7 +57,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
-console.log('Starting Moonbeam Uniswap Interface...')
+console.log('Starting Nbc Uniswap Interface...')
 
 const Web3ProviderNetwork = createWeb3ReactRoot(NetworkContextName)
 
