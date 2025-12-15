@@ -40,9 +40,110 @@ export const CRV = new Token(
 )
 export const ALPHA = new Token(ChainId.MAINNET, '0xa1faa113cbE53436Df28FF0aEe54275c13B40975', 18, 'ALPHA', 'AlphaToken')
 
+// NBC Chain Tokens (ChainId.STANDALONE = 1281)
+// NBC 链上的主要交易代币列表
+
+// WNBC - Wrapped NBC，用于 DEX 交易的包装版本
+export const WNBC = new Token(
+  ChainId.STANDALONE,
+  '0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC',
+  18,
+  'WNBC',
+  'Wrapped NBC'
+)
+
+// NBC - NBC 代币（ERC-20）
+export const NBC = new Token(
+  ChainId.STANDALONE,
+  '0xfE473265296e058fd1999cFf7E4536F51f5a1Fe6',
+  18,
+  'NBC',
+  'NBC Token'
+)
+
+export const BTC_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac',
+  8,
+  'BTC',
+  'Wrapped Bitcoin'
+)
+
+export const ETH_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3',
+  18,
+  'ETH',
+  'Wrapped Ethereum'
+)
+
+export const SOL_NBC = new Token(
+  ChainId.STANDALONE,
+  '0xd5eeccc885ef850d90ae40e716c3dfce5c3d4c81',
+  18,
+  'SOL',
+  'Wrapped Solana'
+)
+
+export const BNB_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x9c43237490272bfdd2f1d1ca0b34f20b1a3c9f5c',
+  18,
+  'BNB',
+  'Wrapped BNB'
+)
+
+export const XRP_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x48e1772534fabbdcade9ca4005e5ee8bf4190093',
+  18,
+  'XRP',
+  'Wrapped XRP'
+)
+
+export const LTC_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x8d22041c22d696fdff0703852a706a40ff65a7de',
+  18,
+  'LTC',
+  'Wrapped Litecoin'
+)
+
+export const DOGE_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x8ceb9a93405cddf3d76f72327f868bd3e8755d89',
+  18,
+  'DOGE',
+  'Wrapped Dogecoin'
+)
+
+export const PEPE_NBC = new Token(
+  ChainId.STANDALONE,
+  '0xd365877026A43107Efd9825bc3ABFe1d7A450F82',
+  18,
+  'PEPE',
+  'Pepe Token'
+)
+
+export const USDT_NBC = new Token(
+  ChainId.STANDALONE,
+  '0xfd1508502696d0e1910ed850c6236d965cc4db11',
+  6,
+  'USDT',
+  'Tether USD'
+)
+
+export const SUI_NBC = new Token(
+  ChainId.STANDALONE,
+  '0x9011191e84ad832100ddc891e360f8402457f55e',
+  18,
+  'SUI',
+  'Sui Token'
+)
+
 const WDEV_ONLY: ChainTokenList = {
   [ChainId.MAINNET]: [WDEV[ChainId.MAINNET]],
-  [ChainId.STANDALONE]: [WDEV[ChainId.STANDALONE]],
+  [ChainId.STANDALONE]: [WNBC],  // NBC 链使用 WNBC 而不是 WDEV
   [ChainId.MOONROCK]: [WDEV[ChainId.MOONROCK]],
   [ChainId.MOONBASE]: [WDEV[ChainId.MOONBASE]],
   [ChainId.MOONSHADOW]: [WDEV[ChainId.MOONSHADOW]],
@@ -66,6 +167,20 @@ export const BASES_TO_CHECK_TRADES_AGAINST: ChainTokenList = {
     CRV,
     ALPHA,
   ],
+  [ChainId.STANDALONE]: [
+    ...WDEV_ONLY[ChainId.STANDALONE],
+    NBC,
+    BTC_NBC,
+    ETH_NBC,
+    SOL_NBC,
+    BNB_NBC,
+    XRP_NBC,
+    LTC_NBC,
+    DOGE_NBC,
+    PEPE_NBC,
+    USDT_NBC,
+    SUI_NBC,
+  ],
 }
 
 /**
@@ -82,12 +197,14 @@ export const CUSTOM_BASES: { [chainId in ChainId]?: { [tokenAddress: string]: To
 export const SUGGESTED_BASES: ChainTokenList = {
   ...WDEV_ONLY,
   [ChainId.MAINNET]: [...WDEV_ONLY[ChainId.MAINNET], DAI, USDC, USDT],
+  [ChainId.STANDALONE]: [...WDEV_ONLY[ChainId.STANDALONE], NBC, BTC_NBC, ETH_NBC, SOL_NBC, BNB_NBC, XRP_NBC, LTC_NBC, DOGE_NBC, PEPE_NBC, USDT_NBC, SUI_NBC],
 }
 
 // used to construct the list of all pairs we consider by default in the frontend
 export const BASES_TO_TRACK_LIQUIDITY_FOR: ChainTokenList = {
   ...WDEV_ONLY,
   [ChainId.MAINNET]: [...WDEV_ONLY[ChainId.MAINNET], DAI, USDC, USDT],
+  [ChainId.STANDALONE]: [...WDEV_ONLY[ChainId.STANDALONE], NBC, BTC_NBC, ETH_NBC, SOL_NBC, BNB_NBC, XRP_NBC, LTC_NBC, DOGE_NBC, PEPE_NBC, USDT_NBC, SUI_NBC],
 }
 
 export const PINNED_PAIRS: { readonly [chainId in ChainId]?: [Token, Token][] } = {
@@ -98,6 +215,12 @@ export const PINNED_PAIRS: { readonly [chainId in ChainId]?: [Token, Token][] } 
     ],
     [USDC, USDT],
     [DAI, USDT],
+  ],
+  [ChainId.STANDALONE]: [
+    [BTC_NBC, ETH_NBC],  // BTC/ETH pair
+    [BTC_NBC, USDT_NBC],  // BTC/USDT pair
+    [ETH_NBC, USDT_NBC],  // ETH/USDT pair
+    [SOL_NBC, USDT_NBC],  // SOL/USDT pair
   ],
 }
 

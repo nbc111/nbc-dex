@@ -1,0 +1,32 @@
+{
+  "comment": "流动性池配置示例 - 复制此文件为 pool-config.json 并填入实际值",
+  "rpcUrl": "http://127.0.0.1:9944",
+  "privateKey": "YOUR_PRIVATE_KEY_HERE",
+  "chainId": 1281,
+  "pools": [
+    {
+      "name": "NBC/WBTC",
+      "tokenA": "0x90b23532950f99cdcdcadeaf5f02435419e689e31ef3f716f04a6c5b1dfec9fa",
+      "tokenB": "0x50e60f24cc3d0937df12516f518272ccbf1bec3445ed19621b5e4693f405b2ff",
+      "amountA": "1000",
+      "amountB": "0.1",
+      "slippage": 0.5
+    },
+    {
+      "name": "NBC/WETH",
+      "tokenA": "0x90b23532950f99cdcdcadeaf5f02435419e689e31ef3f716f04a6c5b1dfec9fa",
+      "tokenB": "0x2aa707db25945e0803083db8c032b61bb957778f3f5fa12646f1e3f34ef56a95",
+      "amountA": "1000",
+      "amountB": "1",
+      "slippage": 0.5
+    },
+    {
+      "name": "WBTC/WETH",
+      "tokenA": "0x50e60f24cc3d0937df12516f518272ccbf1bec3445ed19621b5e4693f405b2ff",
+      "tokenB": "0x2aa707db25945e0803083db8c032b61bb957778f3f5fa12646f1e3f34ef56a95",
+      "amountA": "0.1",
+      "amountB": "1",
+      "slippage": 0.5
+    }
+  ]
+}

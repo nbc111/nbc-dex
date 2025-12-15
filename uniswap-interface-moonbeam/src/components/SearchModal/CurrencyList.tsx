@@ -18,7 +18,7 @@ import Loader from '../Loader'
 import { isTokenOnList } from '../../utils'
 
 function currencyKey(currency: Currency): string {
-  return currency instanceof Token ? currency.address : currency === DEV ? 'DEV' : ''
+  return currency instanceof Token ? currency.address : currency === DEV ? 'NBC' : ''
 }
 
 const StyledBalanceText = styled(Text)`
@@ -114,8 +114,8 @@ function CurrencyRow({
     >
       <CurrencyLogo currency={currency} size={'24px'} />
       <Column>
-        <Text title={currency.name} fontWeight={500}>
-          {currency.symbol}
+        <Text title={currency === DEV ? 'NBC' : currency.name} fontWeight={500}>
+          {currency === DEV ? 'NBC' : currency.symbol}
         </Text>
         <FadedSpan>
           {!isOnSelectedList && customAdded ? (

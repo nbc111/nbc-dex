@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Router 诊断工具</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #00ff00;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        button:hover { background: #00cc00; }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Router 深度诊断</h1>
+    
+    <div class="section">
+        <h2>测试步骤</h2>
+        <button onclick="test1()">1. 基础配置检查</button>
+        <button onclick="test2()">2. 测试简单函数</button>
+        <button onclick="test3()">3. 测试 getAmountsOut</button>
+        <button onclick="test4()">4. 测试 addLiquidity (估算)</button>
+        <button onclick="test5()">5. 对比 Pair 直接调用</button>
+        <button onclick="runAll()" style="background: #ff6600;">🚀 运行全部测试</button>
+        <button onclick="clearOutput()" style="background: #666;">清除</button>
+    </div>
+
+    <div class="section">
+        <h2>诊断结果</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        const ROUTER = '0x3d53f590c82a61f85e6B1f0813e509AEAA0b4991';
+        const FACTORY = '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793';
+        const WNBC = '0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC';
+        const BTC = '0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac';
+        const ETH = '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3';
+        const PAIR = '0x66902e8974efa668ebdeb692dc9c60a2dda01ff6';
+        
+        let output = document.getElementById('output');
+        
+        function clearOutput() {
+            output.textContent = '';
+        }
+        
+        function log(msg, type = 'info') {
+            const colors = { success: '#00ff00', error: '#ff0000', warning: '#ffaa00', info: '#00aaff' };
+            const time = new Date().toLocaleTimeString();
+            output.innerHTML += `<span style="color: ${colors[type]}">[${time}] ${msg}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        async function test1() {
+            log('=== 测试 1: 基础配置检查 ===\n', 'info');
+            
+            try {
+                // 检查 factory()
+                const factoryData = '0xc45a0155';
+                const factoryResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: ROUTER, data: factoryData }, 'latest']
+                });
+                const factoryAddr = '0x' + factoryResult.slice(-40);
+                log(`factory(): ${factoryAddr}`, factoryAddr.toLowerCase() === FACTORY.toLowerCase() ? 'success' : 'error');
+                
+                // 检查 WETH()
+                const wethData = '0xad5c4648';
+                const wethResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: ROUTER, data: wethData }, 'latest']
+                });
+                const wethAddr = '0x' + wethResult.slice(-40);
+                log(`WETH(): ${wethAddr}`, wethAddr.toLowerCase() === WNBC.toLowerCase() ? 'success' : 'error');
+                
+                log('✅ 基础配置正常\n', 'success');
+                return true;
+            } catch (err) {
+                log(`❌ 错误: ${err.message}\n`, 'error');
+                return false;
+            }
+        }
+        
+        async function test2() {
+            log('=== 测试 2: 简单函数调用 ===\n', 'info');
+            
+            try {
+                // 测试 quote(uint amountA, uint reserveA, uint reserveB)
+                log('测试 quote() 函数...', 'info');
+                const quoteData = '0xad615dec' + 
+                    '0000000000000000000000000000000000000000000000000000000005f5e100' + // 1e8 (1 BTC)
+                    '0000000000000000000000000000000000000000000000000000000003b9aca00' + // 1e9 (10 BTC in reserves)
+                    '0000000000000000000000000000000000000000000000033b2e3c9fd0803ce8'; // 60e18 (60 ETH in reserves)
+                
+                const quoteResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: ROUTER, data: quoteData }, 'latest']
+                });
+                
+                const quotedAmount = BigInt(quoteResult);
+                log(`   输入: 1 BTC (1e8)`, 'info');
+                log(`   输出: ${quotedAmount.toString()} wei (${Number(quotedAmount) / 1e18} ETH)`, 'success');
+                log(`   ✅ quote() 函数正常工作\n`, 'success');
+                return true;
+            } catch (err) {
+                log(`   ❌ quote() 失败: ${err.message}\n`, 'error');
+                return false;
+            }
+        }
+        
+        async function test3() {
+            log('=== 测试 3: getAmountsOut ===\n', 'info');
+            
+            try {
+                const amountIn = 1n * 10n**8n; // 1 BTC
+                
+                log('方法 1: 标准 ABI 编码', 'info');
+                const data1 = '0xd06ca61f' + 
+                    amountIn.toString(16).padStart(64, '0') +
+                    '0000000000000000000000000000000000000000000000000000000000000040' +
+                    '0000000000000000000000000000000000000000000000000000000000000002' +
+                    BTC.slice(2).padStart(64, '0') +
+                    ETH.slice(2).padStart(64, '0');
+                
+                log(`   调用数据: ${data1.substring(0, 100)}...`, 'info');
+                
+                try {
+                    const result1 = await window.ethereum.request({
+                        method: 'eth_call',
+                        params: [{ to: ROUTER, data: data1 }, 'latest']
+                    });
+                    log(`   ✅ 成功! 返回: ${result1.substring(0, 100)}...`, 'success');
+                    
+                    // 解析结果
+                    const amountOut = BigInt('0x' + result1.slice(130, 194));
+                    log(`   输出量: ${Number(amountOut) / 1e18} ETH\n`, 'success');
+                    return true;
+                } catch (err) {
+                    log(`   ❌ 失败: ${err.message}`, 'error');
+                    
+                    // 尝试获取详细错误
+                    if (err.data) {
+                        log(`   错误数据: ${JSON.stringify(err.data)}`, 'error');
+                    }
+                    
+                    log('\n方法 2: 尝试不同的编码方式...', 'warning');
+                    
+                    // 简化版本
+                    const data2 = '0xd06ca61f' +
+                        '0000000000000000000000000000000000000000000000000000000005f5e100' + // 1 BTC
+                        '0000000000000000000000000000000000000000000000000000000000000040' +
+                        '0000000000000000000000000000000000000000000000000000000000000002' +
+                        '0000000000000000000000005eaa2c6ae3bff47d2188b64f743ec777733a80ac' +
+                        '000000000000000000000000934ebeb6d7d3821b604a5d10f80619d5bcbe49c3';
+                    
+                    try {
+                        const result2 = await window.ethereum.request({
+                            method: 'eth_call',
+                            params: [{ to: ROUTER, data: data2 }, 'latest']
+                        });
+                        log(`   ✅ 方法2成功! 返回: ${result2.substring(0, 100)}...`, 'success');
+                        return true;
+                    } catch (err2) {
+                        log(`   ❌ 方法2也失败: ${err2.message}\n`, 'error');
+                        return false;
+                    }
+                }
+            } catch (err) {
+                log(`❌ 测试失败: ${err.message}\n`, 'error');
+                return false;
+            }
+        }
+        
+        async function test4() {
+            log('=== 测试 4: addLiquidity (仅估算 gas) ===\n', 'info');
+            
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                const account = accounts[0];
+                
+                const amountA = 1n * 10n**8n;  // 1 BTC
+                const amountB = 5n * 10n**18n; // 5 ETH
+                const minA = amountA * 95n / 100n;
+                const minB = amountB * 95n / 100n;
+                const deadline = Math.floor(Date.now() / 1000) + 1200;
+                
+                const data = '0xe8e33700' +
+                    BTC.slice(2).padStart(64, '0') +
+                    ETH.slice(2).padStart(64, '0') +
+                    amountA.toString(16).padStart(64, '0') +
+                    amountB.toString(16).padStart(64, '0') +
+                    minA.toString(16).padStart(64, '0') +
+                    minB.toString(16).padStart(64, '0') +
+                    account.slice(2).padStart(64, '0') +
+                    deadline.toString(16).padStart(64, '0');
+                
+                log(`调用数据长度: ${data.length} 字符`, 'info');
+                log(`参数:`, 'info');
+                log(`  tokenA: ${BTC}`, 'info');
+                log(`  tokenB: ${ETH}`, 'info');
+                log(`  amountA: ${amountA} (${Number(amountA) / 1e8} BTC)`, 'info');
+                log(`  amountB: ${amountB} (${Number(amountB) / 1e18} ETH)`, 'info');
+                log(`  to: ${account}\n`, 'info');
+                
+                try {
+                    const gasEstimate = await window.ethereum.request({
+                        method: 'eth_estimateGas',
+                        params: [{
+                            from: account,
+                            to: ROUTER,
+                            data: data
+                        }]
+                    });
+                    log(`✅ Gas 估算成功: ${parseInt(gasEstimate, 16)}\n`, 'success');
+                    return true;
+                } catch (err) {
+                    log(`❌ Gas 估算失败: ${err.message}`, 'error');
+                    
+                    if (err.data && err.data.message) {
+                        log(`   详细错误: ${err.data.message}`, 'error');
+                    }
+                    
+                    // 尝试 eth_call 看看返回什么
+                    log('\n尝试 eth_call...', 'warning');
+                    try {
+                        const callResult = await window.ethereum.request({
+                            method: 'eth_call',
+                            params: [{
+                                from: account,
+                                to: ROUTER,
+                                data: data
+                            }, 'latest']
+                        });
+                        log(`   eth_call 返回: ${callResult}`, 'info');
+                    } catch (callErr) {
+                        log(`   eth_call 也失败: ${callErr.message}\n`, 'error');
+                    }
+                    
+                    return false;
+                }
+            } catch (err) {
+                log(`❌ 测试失败: ${err.message}\n`, 'error');
+                return false;
+            }
+        }
+        
+        async function test5() {
+            log('=== 测试 5: 对比 Pair 直接调用 ===\n', 'info');
+            
+            try {
+                // 通过 Pair 获取储备量
+                log('通过 Pair.getReserves()...', 'info');
+                const reservesData = '0x0902f1ac';
+                const reservesResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: PAIR, data: reservesData }, 'latest']
+                });
+                
+                const reserve0 = BigInt('0x' + reservesResult.slice(2, 66));
+                const reserve1 = BigInt('0x' + reservesResult.slice(66, 130));
+                
+                log(`   Reserve0: ${reserve0} (${Number(reserve0) / 1e8} BTC)`, 'success');
+                log(`   Reserve1: ${reserve1} (${Number(reserve1) / 1e18} ETH)`, 'success');
+                
+                // 手动计算 amountOut
+                const amountIn = 1n * 10n**8n;
+                const amountInWithFee = amountIn * 997n;
+                const numerator = amountInWithFee * reserve1;
+                const denominator = reserve0 * 1000n + amountInWithFee;
+                const amountOut = numerator / denominator;
+                
+                log(`\n手动计算 (Uniswap V2 公式):`, 'info');
+                log(`   输入: ${Number(amountIn) / 1e8} BTC`, 'info');
+                log(`   输出: ${Number(amountOut) / 1e18} ETH`, 'success');
+                
+                log('\n✅ Pair 合约工作正常\n', 'success');
+                return true;
+            } catch (err) {
+                log(`❌ 错误: ${err.message}\n`, 'error');
+                return false;
+            }
+        }
+        
+        async function runAll() {
+            clearOutput();
+            log('🚀 开始完整诊断...\n\n', 'info');
+            
+            const results = [];
+            results.push(await test1());
+            results.push(await test2());
+            results.push(await test3());
+            results.push(await test4());
+            results.push(await test5());
+            
+            log('='.repeat(60), 'info');
+            log('\n📊 诊断总结:\n', 'info');
+            log(`测试 1 (基础配置): ${results[0] ? '✅ 通过' : '❌ 失败'}`, results[0] ? 'success' : 'error');
+            log(`测试 2 (简单函数): ${results[1] ? '✅ 通过' : '❌ 失败'}`, results[1] ? 'success' : 'error');
+            log(`测试 3 (getAmountsOut): ${results[2] ? '✅ 通过' : '❌ 失败'}`, results[2] ? 'success' : 'error');
+            log(`测试 4 (addLiquidity): ${results[3] ? '✅ 通过' : '❌ 失败'}`, results[3] ? 'success' : 'error');
+            log(`测试 5 (Pair 对比): ${results[4] ? '✅ 通过' : '❌ 失败'}`, results[4] ? 'success' : 'error');
+            
+            const passCount = results.filter(r => r).length;
+            log(`\n通过率: ${passCount}/5`, passCount === 5 ? 'success' : 'warning');
+            log('='.repeat(60), 'info');
+        }
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { diffTokenLists, TokenList } from '@uniswap/token-lists'
+import { TokenList, TokenInfo } from '@uniswap/token-lists'
 import React, { useCallback, useMemo } from 'react'
 import ReactGA from 'react-ga'
 import { useDispatch } from 'react-redux'
@@ -11,6 +11,69 @@ import listVersionLabel from '../../utils/listVersionLabel'
 import { ButtonSecondary } from '../Button'
 import { AutoColumn } from '../Column'
 import { AutoRow } from '../Row'
+
+// Custom implementation of diffTokenLists since it's no longer exported
+function diffTokenLists(
+  oldTokens: TokenInfo[],
+  newTokens: TokenInfo[]
+): {
+  added: TokenInfo[]
+  changed: TokenInfo[]
+  removed: TokenInfo[]
+} {
+  const oldTokenMap: { [chainId: number]: { [address: string]: TokenInfo } } = {}
+  const newTokenMap: { [chainId: number]: { [address: string]: TokenInfo } } = {}
+  const added: TokenInfo[] = []
+  const changed: TokenInfo[] = []
+  const removed: TokenInfo[] = []
+
+  // Build old token map
+  oldTokens.forEach(token => {
+    if (!oldTokenMap[token.chainId]) oldTokenMap[token.chainId] = {}
+    oldTokenMap[token.chainId][token.address.toLowerCase()] = token
+  })
+
+  // Build new token map
+  newTokens.forEach(token => {
+    if (!newTokenMap[token.chainId]) newTokenMap[token.chainId] = {}
+    newTokenMap[token.chainId][token.address.toLowerCase()] = token
+  })
+
+  // Find added and changed tokens
+  newTokens.forEach(newToken => {
+    const chainId = newToken.chainId
+    const address = newToken.address.toLowerCase()
+    const oldToken = oldTokenMap[chainId]?.[address]
+
+    if (!oldToken) {
+      // Token is new
+      added.push(newToken)
+    } else {
+      // Check if token has changed
+      if (
+        oldToken.name !== newToken.name ||
+        oldToken.symbol !== newToken.symbol ||
+        oldToken.decimals !== newToken.decimals ||
+        oldToken.logoURI !== newToken.logoURI
+      ) {
+        changed.push(newToken)
+      }
+    }
+  })
+
+  // Find removed tokens
+  oldTokens.forEach(oldToken => {
+    const chainId = oldToken.chainId
+    const address = oldToken.address.toLowerCase()
+    const newToken = newTokenMap[chainId]?.[address]
+
+    if (!newToken) {
+      removed.push(oldToken)
+    }
+  })
+
+  return { added, changed, removed }
+}
 
 export default function ListUpdatePopup({
   popKey,
@@ -44,8 +107,7 @@ export default function ListUpdatePopup({
     return diffTokenLists(oldList.tokens, newList.tokens)
   }, [newList.tokens, oldList.tokens])
   const numTokensChanged = useMemo(
-    () =>
-      Object.keys(tokensChanged).reduce((memo, chainId: any) => memo + Object.keys(tokensChanged[chainId]).length, 0),
+    () => tokensChanged.length,
     [tokensChanged]
   )
 
