@@ -5,10 +5,11 @@ import { Text } from 'rebass'
 
 import styled from 'styled-components'
 
-import Logo from '../../assets/images/mainlogo.png'
+import Logo from '../../assets/images/mainlogo.svg'
 import { useActiveWeb3React } from '../../hooks'
 //import { useDarkModeManager } from '../../state/user/hooks'
 import { useETHBalances } from '../../state/wallet/hooks'
+import { getNativeCurrencySymbol } from '../../utils'
 
 import { YellowCard } from '../Card'
 import Settings from '../Settings'
@@ -144,7 +145,7 @@ export default function Header() {
             <AccountElement active={!!account} style={{ pointerEvents: 'auto' }}>
               {account && userEthBalance ? (
                 <BalanceText style={{ flexShrink: 0 }} pl="0.75rem" pr="0.5rem" fontWeight={500}>
-                  {userEthBalance?.toSignificant(4)} DEV
+                  {userEthBalance?.toSignificant(4)} {getNativeCurrencySymbol(chainId)}
                 </BalanceText>
               ) : null}
               <Web3Status />

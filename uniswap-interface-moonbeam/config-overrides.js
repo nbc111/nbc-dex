@@ -25,6 +25,13 @@ module.exports = function override(config, env) {
     ...config.resolve.fallback,
     "process": require.resolve("process/browser"),
   };
+  
+  // 添加 process 插件
+  config.plugins.push(
+    new webpack.ProvidePlugin({
+      process: 'process/browser',
+    })
+  );
 
   return config;
 };

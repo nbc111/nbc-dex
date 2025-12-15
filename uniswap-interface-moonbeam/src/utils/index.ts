@@ -8,6 +8,18 @@ import { ROUTER_ADDRESS } from '../constants'
 import { ChainId, JSBI, Percent, Token, CurrencyAmount, Currency, DEV } from 'moonbeamswap'
 import { TokenAddressMap } from '../state/lists/hooks'
 
+/**
+ * Get the native currency symbol for a given chain ID
+ * @param chainId The chain ID
+ * @returns The native currency symbol (NBC for STANDALONE, DEV for others)
+ */
+export function getNativeCurrencySymbol(chainId?: ChainId): string {
+  if (chainId === ChainId.STANDALONE) {
+    return 'NBC'
+  }
+  return 'DEV'
+}
+
 // returns the checksummed address if the address is valid, otherwise returns false
 export function isAddress(value: any): string | false {
   try {
@@ -16,16 +28,16 @@ export function isAddress(value: any): string | false {
     return false
   }
 }
-/*
-const DEVSCAN_PREFIXES: { [chainId in ChainId]: string } = {
-  1: '',
-  1287: 'xxxxxxxxx',
+const EXPLORER_URLS: { [chainId in ChainId]?: string } = {
+  [ChainId.MAINNET]: 'https://etherscan.io',
+  [ChainId.STANDALONE]: 'https://www.nbblocks.cc',
+  [ChainId.MOONROCK]: 'https://moonrock.moonscan.io',
+  [ChainId.MOONBASE]: 'https://moonbase.moonscan.io',
+  [ChainId.MOONSHADOW]: 'https://moonshadow.moonscan.io'
 }
-*/
 
 export function getEtherscanLink(chainId: ChainId, data: string, type: 'transaction' | 'token' | 'address'): string {
-  //const prefix = `https://${DEVSCAN_PREFIXES[chainId] || DEVSCAN_PREFIXES[1]}etherscan.io`
-  const prefix = 'https://moonbase.moonscan.io'
+  const prefix = EXPLORER_URLS[chainId] || 'https://etherscan.io'
   switch (type) {
     case 'transaction': {
       return `${prefix}/tx/${data}`

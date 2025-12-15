@@ -13,7 +13,7 @@ import { ReactComponent as DropDown } from '../../assets/images/dropdown.svg'
 
 import { useActiveWeb3React } from '../../hooks'
 import { useTranslation } from 'react-i18next'
-import { DEV } from 'moonbeamswap'
+import { getNativeCurrencySymbol } from '../../utils'
 
 const InputRow = styled.div<{ selected: boolean }>`
   ${({ theme }) => theme.flexRowNoWrap}
@@ -151,9 +151,18 @@ export default function CurrencyInputPanel({
   const { t } = useTranslation()
 
   const [modalOpen, setModalOpen] = useState(false)
-  const { account } = useActiveWeb3React()
+  const { account, chainId } = useActiveWeb3React()
 
   const selectedCurrencyBalance = useCurrencyBalance(account ?? undefined, currency ?? undefined)
+
+  // Get the display symbol for the currency (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+  const getDisplaySymbol = (currency: Currency | null | undefined): string => {
+    if (!currency) return ''
+    if (currency === DEV) {
+      return getNativeCurrencySymbol(chainId)
+    }
+    return currency.symbol || ''
+  }
 
   const theme = useContext(ThemeContext)
 
@@ -222,11 +231,14 @@ export default function CurrencyInputPanel({
                 </StyledTokenName>
               ) : (
                 <StyledTokenName className="token-symbol-container" active={Boolean(currency && currency.symbol)}>
-                  {currency === DEV ? 'NBC' : (currency && currency.symbol && currency.symbol.length > 20
-                    ? currency.symbol.slice(0, 4) +
-                      '...' +
-                      currency.symbol.slice(currency.symbol.length - 5, currency.symbol.length)
-                    : currency?.symbol) || t('selectToken')}
+                  {(() => {
+                    const displaySymbol = getDisplaySymbol(currency)
+                    return (displaySymbol && displaySymbol.length > 20
+                      ? displaySymbol.slice(0, 4) +
+                        '...' +
+                        displaySymbol.slice(displaySymbol.length - 5, displaySymbol.length)
+                      : displaySymbol) || t('selectToken')
+                  })()}
                 </StyledTokenName>
               )}
               {!disableCurrencySelect && <StyledDropDown selected={!!currency} />}
