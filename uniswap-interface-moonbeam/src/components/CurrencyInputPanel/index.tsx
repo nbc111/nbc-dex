@@ -1,4 +1,4 @@
-import { Currency, Pair, DEV } from 'moonbeamswap'
+import { Currency, Pair } from 'moonbeamswap'
 import React, { useState, useContext, useCallback } from 'react'
 import styled, { ThemeContext } from 'styled-components'
 import { darken } from 'polished'
@@ -154,7 +154,7 @@ export default function CurrencyInputPanel({
   const { account, chainId } = useActiveWeb3React()
 
   const selectedCurrencyBalance = useCurrencyBalance(account ?? undefined, currency ?? undefined)
-  
+
   // Get the display symbol for the currency (NBC for DEV on NBC Chain, otherwise use currency.symbol)
   const getDisplaySymbol = (currency: Currency | null | undefined): string => {
     if (!currency) return ''

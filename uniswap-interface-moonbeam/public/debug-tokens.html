@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Token Loading</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 { color: #58a6ff; }
+        h2 { color: #79c0ff; margin-top: 30px; }
+        .info { background: #161b22; padding: 15px; border-radius: 6px; margin: 10px 0; }
+        .success { color: #3fb950; }
+        .error { color: #f85149; }
+        .warning { color: #d29922; }
+        pre { background: #0d1117; padding: 10px; border: 1px solid #30363d; border-radius: 6px; overflow-x: auto; }
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2ea043; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Token Loading Debugger</h1>
+    
+    <div class="info">
+        <p>这个页面会帮助你诊断为什么代币没有显示在界面上。</p>
+        <p>请在 Uniswap DEX 页面打开后，在浏览器控制台运行以下代码：</p>
+    </div>
+
+    <h2>📋 步骤 1: 检查当前链 ID</h2>
+    <pre>
+// 复制并粘贴到 Uniswap DEX 页面的控制台
+console.log('🔗 Current Chain ID:', window.ethereum?.chainId);
+console.log('🔗 Chain ID (decimal):', parseInt(window.ethereum?.chainId, 16));
+    </pre>
+
+    <h2>📋 步骤 2: 检查 Redux Store 中的代币列表</h2>
+    <pre>
+// 获取 Redux store
+const state = window.__REDUX_DEVTOOLS_EXTENSION__?.() || 
+              JSON.parse(localStorage.getItem('persist:root') || '{}');
+
+console.log('📦 Redux State:', state);
+
+// 检查代币列表
+if (state.lists) {
+    console.log('📜 Token Lists:', state.lists);
+    
+    // 检查选中的列表
+    const selectedUrl = state.lists.selectedListUrl;
+    console.log('✅ Selected List URL:', selectedUrl);
+    
+    // 检查列表中的代币
+    if (state.lists.byUrl) {
+        Object.keys(state.lists.byUrl).forEach(url => {
+            const list = state.lists.byUrl[url];
+            if (list.current) {
+                console.log(`📋 List: ${url}`);
+                console.log(`  - Name: ${list.current.name}`);
+                console.log(`  - Total tokens: ${list.current.tokens.length}`);
+                
+                // 统计每个链的代币数量
+                const chainCounts = {};
+                list.current.tokens.forEach(token => {
+                    chainCounts[token.chainId] = (chainCounts[token.chainId] || 0) + 1;
+                });
+                console.log('  - Tokens by chain:', chainCounts);
+                
+                // 显示 Chain 1281 的代币
+                const chain1281Tokens = list.current.tokens.filter(t => t.chainId === 1281);
+                console.log(`  - Chain 1281 (NBC) tokens (${chain1281Tokens.length}):`, 
+                    chain1281Tokens.map(t => t.symbol).join(', '));
+            }
+        });
+    }
+}
+    </pre>
+
+    <h2>📋 步骤 3: 检查 SUGGESTED_BASES</h2>
+    <pre>
+// 这个需要在 React DevTools 或通过 window 对象访问
+// 如果你安装了 React DevTools，可以检查 CommonBases 组件的 props
+
+// 或者直接检查 constants
+fetch('/static/js/main.chunk.js')
+    .then(r => r.text())
+    .then(code => {
+        console.log('🔍 Searching for SUGGESTED_BASES in code...');
+        if (code.includes('SUGGESTED_BASES')) {
+            console.log('✅ SUGGESTED_BASES found in code');
+        } else {
+            console.log('❌ SUGGESTED_BASES not found');
+        }
+    });
+    </pre>
+
+    <h2>📋 步骤 4: 手动测试代币加载</h2>
+    <pre>
+// 检查 tokens.json 是否可以访问
+fetch('/tokens.json')
+    .then(r => r.json())
+    .then(data => {
+        console.log('✅ tokens.json loaded successfully');
+        console.log('📊 Total tokens:', data.tokens.length);
+        
+        const chain1281 = data.tokens.filter(t => t.chainId === 1281);
+        console.log('📊 Chain 1281 tokens:', chain1281.length);
+        console.log('📋 Chain 1281 token symbols:', 
+            chain1281.map(t => t.symbol).join(', '));
+        
+        // 显示前5个 Chain 1281 代币的详细信息
+        console.log('📋 First 5 Chain 1281 tokens:');
+        chain1281.slice(0, 5).forEach(t => {
+            console.log(`  - ${t.symbol}: ${t.name} (${t.address})`);
+        });
+    })
+    .catch(err => {
+        console.error('❌ Failed to load tokens.json:', err);
+    });
+    </pre>
+
+    <h2>📋 步骤 5: 检查钱包连接</h2>
+    <pre>
+// 检查钱包是否连接到正确的网络
+if (window.ethereum) {
+    window.ethereum.request({ method: 'eth_chainId' })
+        .then(chainId => {
+            const decimal = parseInt(chainId, 16);
+            console.log('🔗 Wallet Chain ID:', chainId, '(decimal:', decimal, ')');
+            
+            if (decimal === 1281) {
+                console.log('✅ Connected to NBC chain (1281)');
+            } else {
+                console.log('⚠️  NOT connected to NBC chain!');
+                console.log('💡 Please switch to NBC network in your wallet');
+            }
+        });
+    
+    // 检查账户
+    window.ethereum.request({ method: 'eth_accounts' })
+        .then(accounts => {
+            if (accounts.length > 0) {
+                console.log('✅ Wallet connected:', accounts[0]);
+            } else {
+                console.log('⚠️  No wallet connected');
+            }
+        });
+} else {
+    console.log('❌ No Ethereum wallet detected');
+}
+    </pre>
+
+    <h2>🎯 预期结果</h2>
+    <div class="info">
+        <p><strong>如果一切正常，你应该看到：</strong></p>
+        <ul>
+            <li>✅ Chain ID: 1281 (NBC)</li>
+            <li>✅ tokens.json 包含 12 个 Chain 1281 的代币</li>
+            <li>✅ Redux store 中有这些代币</li>
+            <li>✅ 钱包连接到 Chain 1281</li>
+        </ul>
+        
+        <p><strong>如果看到问题：</strong></p>
+        <ul>
+            <li>❌ Chain ID 不是 1281 → 需要在钱包中切换网络</li>
+            <li>❌ Redux store 中没有代币 → 需要清除缓存并重新加载</li>
+            <li>❌ tokens.json 加载失败 → 检查文件路径和格式</li>
+        </ul>
+    </div>
+
+    <h2>🔧 快速修复</h2>
+    <button onclick="clearAll()">清除所有缓存</button>
+    <button onclick="reloadPage()">重新加载页面</button>
+    
+    <div id="result"></div>
+
+    <script>
+        function clearAll() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.getElementById('result').innerHTML = '<p class="success">✅ 缓存已清除！请重新加载页面。</p>';
+        }
+        
+        function reloadPage() {
+            window.location.href = 'http://localhost:3001';
+        }
+    </script>
+</body>
+</html>

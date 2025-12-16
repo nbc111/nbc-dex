@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>清除缓存</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #667eea;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 清除缓存工具</h1>
+        <p>点击下面的按钮清除所有缓存数据</p>
+        <button onclick="clearAll()">清除所有缓存</button>
+        <button onclick="window.location.reload()">刷新页面</button>
+        <div class="output" id="output"></div>
+    </div>
+
+    <script>
+        function clearAll() {
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+            
+            function log(msg) {
+                output.innerHTML += msg + '<br>';
+            }
+            
+            try {
+                // 清除 localStorage
+                localStorage.clear();
+                log('✅ localStorage 已清除');
+                
+                // 清除 sessionStorage
+                sessionStorage.clear();
+                log('✅ sessionStorage 已清除');
+                
+                // 清除 cookies
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                log('✅ Cookies 已清除');
+                
+                log('<br>🎉 所有缓存已清除！');
+                log('请点击"刷新页面"按钮或按 F5');
+                
+            } catch (err) {
+                log('❌ 错误: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

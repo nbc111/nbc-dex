@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Uniswap Cache</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background: #2172E5;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #1a5bb8;
+        }
+        .success {
+            color: #27AE60;
+            margin-top: 20px;
+        }
+        .info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 Clear Uniswap DEX Cache</h1>
+    
+    <div class="info">
+        <p><strong>这个工具会清除：</strong></p>
+        <ul>
+            <li>LocalStorage 中的代币列表缓存</li>
+            <li>Redux 状态</li>
+            <li>所有 Uniswap 相关的缓存数据</li>
+        </ul>
+    </div>
+
+    <button onclick="clearCache()">清除缓存</button>
+    <button onclick="clearAndReload()">清除缓存并刷新</button>
+    
+    <div id="result"></div>
+
+    <script>
+        function clearCache() {
+            try {
+                // Clear localStorage
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (
+                        key.includes('redux') ||
+                        key.includes('token') ||
+                        key.includes('list') ||
+                        key.includes('uniswap') ||
+                        key.includes('persist')
+                    )) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    console.log('Removed:', key);
+                });
+
+                // Clear sessionStorage
+                sessionStorage.clear();
+
+                document.getElementById('result').innerHTML = `
+                    <div class="success">
+                        <h3>✅ 缓存已清除！</h3>
+                        <p>已删除 ${keysToRemove.length} 个缓存项</p>
+                        <p>请刷新页面或重启应用</p>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div style="color: #E74C3C;">
+                        <h3>❌ 错误</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function clearAndReload() {
+            clearCache();
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3001';
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

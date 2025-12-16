@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>检查 Pair</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 检查 BTC/ETH Pair</h1>
+    <button onclick="checkPair()">检查 Pair</button>
+    <button onclick="checkReserves()">检查储备量</button>
+    <pre id="output"></pre>
+
+    <script>
+        const FACTORY = '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793';
+        const BTC = '0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac';
+        const ETH = '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3';
+        
+        async function checkPair() {
+            const output = document.getElementById('output');
+            output.textContent = '检查中...\n';
+            
+            try {
+                // getPair(tokenA, tokenB)
+                const data = '0xe6a43905' + 
+                    BTC.slice(2).padStart(64, '0') +
+                    ETH.slice(2).padStart(64, '0');
+                
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: FACTORY, data: data }, 'latest']
+                });
+                
+                const pairAddr = '0x' + result.slice(-40);
+                output.textContent += `Pair 地址: ${pairAddr}\n\n`;
+                
+                if (pairAddr === '0x0000000000000000000000000000000000000000') {
+                    output.textContent += '❌ Pair 不存在！需要先创建 Pair\n';
+                    return;
+                }
+                
+                // 检查 Pair 合约代码
+                const code = await window.ethereum.request({
+                    method: 'eth_getCode',
+                    params: [pairAddr, 'latest']
+                });
+                
+                if (code === '0x' || code === '0x0') {
+                    output.textContent += '❌ Pair 合约不存在\n';
+                } else {
+                    output.textContent += `✅ Pair 合约存在 (${code.length} 字节)\n`;
+                }
+                
+                window.pairAddress = pairAddr;
+            } catch (err) {
+                output.textContent += `❌ 错误: ${err.message}\n`;
+            }
+        }
+        
+        async function checkReserves() {
+            const output = document.getElementById('output');
+            
+            if (!window.pairAddress) {
+                output.textContent = '请先检查 Pair\n';
+                return;
+            }
+            
+            try {
+                // getReserves()
+                const data = '0x0902f1ac';
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: window.pairAddress, data: data }, 'latest']
+                });
+                
+                output.textContent += '\n储备量:\n';
+                const reserve0 = BigInt('0x' + result.slice(2, 66));
+                const reserve1 = BigInt('0x' + result.slice(66, 130));
+                
+                output.textContent += `Reserve0: ${reserve0.toString()}\n`;
+                output.textContent += `Reserve1: ${reserve1.toString()}\n`;
+                
+                if (reserve0 === 0n && reserve1 === 0n) {
+                    output.textContent += '\n⚠️  储备量为 0，Pair 存在但没有流动性\n';
+                } else {
+                    output.textContent += '\n✅ Pair 有流动性\n';
+                }
+            } catch (err) {
+                output.textContent += `\n❌ 错误: ${err.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>

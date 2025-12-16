@@ -14,11 +14,11 @@ export class FortmaticConnector extends FortmaticConnectorCore {
     if (!this.fortmatic) {
       const { default: Fortmatic } = await import('fortmatic')
 
-      const { apiKey, chainId } = this as any
-      if (chainId in CHAIN_ID_NETWORK_ARGUMENT) {
-        this.fortmatic = new Fortmatic(apiKey, CHAIN_ID_NETWORK_ARGUMENT[chainId as FormaticSupportedChains])
+      const { apiKey, chainId: _chainId } = this as any
+      if (_chainId in CHAIN_ID_NETWORK_ARGUMENT) {
+        this.fortmatic = new Fortmatic(apiKey, CHAIN_ID_NETWORK_ARGUMENT[_chainId as FormaticSupportedChains])
       } else {
-        throw new Error(`Unsupported network ID: ${chainId}`)
+        throw new Error(`Unsupported network ID: ${_chainId}`)
       }
     }
 

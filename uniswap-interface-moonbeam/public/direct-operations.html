@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NBC DEX - 直接操作面板</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            white-space: pre-wrap;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+        .label {
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 NBC DEX - 直接操作面板</h1>
+        
+        <div class="section">
+            <h2>💱 Swap (交换代币)</h2>
+            <label class="label">从 (Token):</label>
+            <select id="swapFrom">
+                <option value="0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac">BTC</option>
+                <option value="0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3">ETH</option>
+            </select>
+            
+            <label class="label">到 (Token):</label>
+            <select id="swapTo">
+                <option value="0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3">ETH</option>
+                <option value="0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac">BTC</option>
+            </select>
+            
+            <label class="label">数量:</label>
+            <input type="number" id="swapAmount" placeholder="输入数量" step="0.01">
+            
+            <button onclick="executeSwap()">🔄 执行 Swap</button>
+            <button onclick="checkPrice()">💰 查询价格</button>
+        </div>
+        
+        <div class="section">
+            <h2>💧 Add Liquidity (添加流动性)</h2>
+            <label class="label">Token A 数量:</label>
+            <input type="number" id="liquidityAmountA" placeholder="BTC 数量" step="0.01">
+            
+            <label class="label">Token B 数量:</label>
+            <input type="number" id="liquidityAmountB" placeholder="ETH 数量" step="0.01">
+            
+            <button onclick="addLiquidity()">➕ 添加流动性</button>
+        </div>
+        
+        <div class="section">
+            <h2>📊 查询信息</h2>
+            <button onclick="checkBalances()">💰 查询余额</button>
+            <button onclick="checkPairInfo()">📈 查询 Pair 信息</button>
+            <button onclick="checkAllowances()">✅ 查询授权</button>
+        </div>
+        
+        <div class="output" id="output">等待操作...</div>
+    </div>
+
+    <script>
+        const PAIR = '0x66902e8974efa668ebdeb692dc9c60a2dda01ff6';
+        const BTC = '0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac';
+        const ETH = '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3';
+        
+        let account = null;
+        let output = document.getElementById('output');
+        
+        function log(msg, type = 'info') {
+            const colors = { success: '#00ff00', error: '#ff4444', warning: '#ffaa00', info: '#00aaff' };
+            const time = new Date().toLocaleTimeString();
+            output.innerHTML += `<span style="color: ${colors[type]}">[${time}] ${msg}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            output.textContent = '';
+        }
+        
+        async function init() {
+            if (typeof window.ethereum === 'undefined') {
+                log('❌ 请安装 MetaMask!', 'error');
+                return false;
+            }
+            
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts.length === 0) {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const newAccounts = await window.ethereum.request({ method: 'eth_accounts' });
+                account = newAccounts[0];
+            } else {
+                account = accounts[0];
+            }
+            
+            log(`✅ 已连接: ${account}`, 'success');
+            return true;
+        }
+        
+        async function checkPrice() {
+            clearOutput();
+            if (!await init()) return;
+            
+            const from = document.getElementById('swapFrom').value;
+            const to = document.getElementById('swapTo').value;
+            const amount = document.getElementById('swapAmount').value;
+            
+            if (!amount || amount <= 0) {
+                log('❌ 请输入有效数量', 'error');
+                return;
+            }
+            
+            log('查询价格...', 'info');
+            
+            try {
+                // 获取储备量
+                const reservesData = '0x0902f1ac';
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: PAIR, data: reservesData }, 'latest']
+                });
+                
+                const reserve0 = BigInt('0x' + result.slice(2, 66));
+                const reserve1 = BigInt('0x' + result.slice(66, 130));
+                
+                // 计算输出
+                const decimalsIn = from === BTC ? 8 : 18;
+                const decimalsOut = to === BTC ? 8 : 18;
+                const amountIn = BigInt(Math.floor(amount * 10**decimalsIn));
+                
+                const reserveIn = from === BTC ? reserve0 : reserve1;
+                const reserveOut = from === BTC ? reserve1 : reserve0;
+                
+                const amountInWithFee = amountIn * 997n;
+                const numerator = amountInWithFee * reserveOut;
+                const denominator = reserveIn * 1000n + amountInWithFee;
+                const amountOut = numerator / denominator;
+                
+                const fromToken = from === BTC ? 'BTC' : 'ETH';
+                const toToken = to === BTC ? 'BTC' : 'ETH';
+                
+                log(`\n💱 价格查询结果:`, 'success');
+                log(`输入: ${amount} ${fromToken}`, 'info');
+                log(`输出: ${Number(amountOut) / 10**decimalsOut} ${toToken}`, 'success');
+                log(`价格: 1 ${fromToken} = ${Number(amountOut) / Number(amountIn) * 10**(decimalsIn - decimalsOut)} ${toToken}`, 'info');
+                
+            } catch (err) {
+                log(`❌ 错误: ${err.message}`, 'error');
+            }
+        }
+        
+        async function executeSwap() {
+            clearOutput();
+            if (!await init()) return;
+            
+            const from = document.getElementById('swapFrom').value;
+            const to = document.getElementById('swapTo').value;
+            const amount = document.getElementById('swapAmount').value;
+            
+            if (!amount || amount <= 0) {
+                log('❌ 请输入有效数量', 'error');
+                return;
+            }
+            
+            log('🔄 开始 Swap...', 'info');
+            
+            // 实现 Swap 逻辑（类似之前的 swapDirectly 脚本）
+            log('⚠️  Swap 功能开发中...', 'warning');
+            log('请使用浏览器控制台的 swapDirectly() 脚本', 'info');
+        }
+        
+        async function addLiquidity() {
+            clearOutput();
+            if (!await init()) return;
+            
+            log('💧 添加流动性功能开发中...', 'warning');
+            log('请使用浏览器控制台的 addFirstLiquidity() 脚本', 'info');
+        }
+        
+        async function checkBalances() {
+            clearOutput();
+            if (!await init()) return;
+            
+            log('查询余额...', 'info');
+            
+            try {
+                const balanceData = '0x70a08231' + account.slice(2).padStart(64, '0');
+                
+                const btcBalance = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: BTC, data: balanceData }, 'latest']
+                });
+                
+                const ethBalance = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: ETH, data: balanceData }, 'latest']
+                });
+                
+                log('\n💰 余额:', 'success');
+                log(`BTC: ${Number(BigInt(btcBalance)) / 1e8}`, 'info');
+                log(`ETH: ${Number(BigInt(ethBalance)) / 1e18}`, 'info');
+                
+            } catch (err) {
+                log(`❌ 错误: ${err.message}`, 'error');
+            }
+        }
+        
+        async function checkPairInfo() {
+            clearOutput();
+            if (!await init()) return;
+            
+            log('查询 Pair 信息...', 'info');
+            
+            try {
+                const reservesData = '0x0902f1ac';
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: PAIR, data: reservesData }, 'latest']
+                });
+                
+                const reserve0 = BigInt('0x' + result.slice(2, 66));
+                const reserve1 = BigInt('0x' + result.slice(66, 130));
+                
+                log('\n📈 BTC/ETH Pair 信息:', 'success');
+                log(`Pair 地址: ${PAIR}`, 'info');
+                log(`BTC 储备: ${Number(reserve0) / 1e8}`, 'info');
+                log(`ETH 储备: ${Number(reserve1) / 1e18}`, 'info');
+                log(`价格: 1 BTC = ${Number(reserve1) / Number(reserve0) * 1e10} ETH`, 'info');
+                
+            } catch (err) {
+                log(`❌ 错误: ${err.message}`, 'error');
+            }
+        }
+        
+        async function checkAllowances() {
+            clearOutput();
+            if (!await init()) return;
+            
+            log('查询授权...', 'info');
+            
+            try {
+                const allowanceData = '0xdd62ed3e' + 
+                    account.slice(2).padStart(64, '0') +
+                    PAIR.slice(2).padStart(64, '0');
+                
+                const btcAllowance = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: BTC, data: allowanceData }, 'latest']
+                });
+                
+                const ethAllowance = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: ETH, data: allowanceData }, 'latest']
+                });
+                
+                log('\n✅ 授权额度:', 'success');
+                log(`BTC -> Pair: ${Number(BigInt(btcAllowance)) / 1e8}`, 'info');
+                log(`ETH -> Pair: ${Number(BigInt(ethAllowance)) / 1e18}`, 'info');
+                
+            } catch (err) {
+                log(`❌ 错误: ${err.message}`, 'error');
+            }
+        }
+        
+        // 页面加载时初始化
+        window.addEventListener('load', async () => {
+            log('NBC DEX 直接操作面板已加载', 'success');
+            log('点击上方按钮开始操作', 'info');
+        });
+    </script>
+</body>
+</html>
