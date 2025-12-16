@@ -8,7 +8,7 @@ import { useActiveWeb3React } from '../../hooks'
 import { useCurrency } from '../../hooks/Tokens'
 import { useTradeExactIn, useTradeExactOut } from '../../hooks/Trades'
 import useParsedQueryString from '../../hooks/useParsedQueryString'
-import { isAddress } from '../../utils'
+import { isAddress, getNativeCurrencySymbol } from '../../utils'
 import { AppDispatch, AppState } from '../index'
 import { useCurrencyBalances } from '../wallet/hooks'
 import { Field, replaceSwapState, selectCurrency, setRecipient, switchCurrencies, typeInput } from './actions'
@@ -29,16 +29,17 @@ export function useSwapActionHandlers(): {
   onChangeRecipient: (recipient: string | null) => void
 } {
   const dispatch = useDispatch<AppDispatch>()
+  const { chainId } = useActiveWeb3React()
   const onCurrencySelection = useCallback(
     (field: Field, currency: Currency) => {
       dispatch(
         selectCurrency({
           field,
-          currencyId: currency instanceof Token ? currency.address : currency === DEV ? 'ETH' : ''
+          currencyId: currency instanceof Token ? currency.address : currency === DEV ? getNativeCurrencySymbol(chainId) : ''
         })
       )
     },
-    [dispatch]
+    [dispatch, chainId]
   )
 
   const onSwitchTokens = useCallback(() => {
@@ -205,10 +206,12 @@ function parseCurrencyFromURLParameter(urlParam: any): string {
   if (typeof urlParam === 'string') {
     const valid = isAddress(urlParam)
     if (valid) return valid
-    if (urlParam.toUpperCase() === 'ETH') return 'ETH'
-    if (valid === false) return 'ETH'
+    const upperParam = urlParam.toUpperCase()
+    // 支持 ETH 和 NBC 作为原生货币标识符
+    if (upperParam === 'ETH' || upperParam === 'NBC') return upperParam
+    if (valid === false) return 'ETH' // 保持向后兼容，默认返回 ETH
   }
-  return 'ETH' ?? ''
+  return 'ETH' ?? '' // 保持向后兼容
 }
 
 function parseTokenAmountURLParameter(urlParam: any): string {

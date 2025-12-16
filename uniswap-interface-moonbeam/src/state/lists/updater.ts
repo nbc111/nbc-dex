@@ -20,9 +20,11 @@ export default function Updater(): null {
 
   const fetchAllListsCallback = useCallback(() => {
     if (!isWindowVisible) return
-    Object.keys(lists).forEach(url =>
+    Object.keys(lists).forEach(url => {
+      // Skip local token list - it's already loaded from local file
+      if (url === 'local://default') return
       fetchList(url).catch(error => console.debug('interval list fetching error', error))
-    )
+    })
   }, [fetchList, isWindowVisible, lists])
 
   // fetch all lists every 10 minutes, but only after we initialize library
@@ -31,6 +33,9 @@ export default function Updater(): null {
   // whenever a list is not loaded and not loading, try again to load it
   useEffect(() => {
     Object.keys(lists).forEach(listUrl => {
+      // Skip local token list - it's already loaded from local file
+      if (listUrl === 'local://default') return
+      
       const list = lists[listUrl]
 
       if (!list.current && !list.loadingRequestId && !list.error) {

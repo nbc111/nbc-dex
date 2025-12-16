@@ -4,6 +4,7 @@ import Ajv from 'ajv'
 import contenthashToUri from './contenthashToUri'
 import { parseENSAddress } from './parseENSAddress'
 import uriToHttp from './uriToHttp'
+import DCTDAO_DEFAULT_LIST from '../tokens.json'
 
 const tokenListValidator = new Ajv({ allErrors: true }).compile(schema)
 
@@ -16,6 +17,11 @@ export default async function getTokenList(
   listUrl: string,
   resolveENSContentHash: (ensName: string) => Promise<string>
 ): Promise<TokenList> {
+  // Handle local token list
+  if (listUrl === 'local://default') {
+    return Promise.resolve(DCTDAO_DEFAULT_LIST)
+  }
+
   const parsedENS = parseENSAddress(listUrl)
   let urls: string[]
   if (parsedENS) {

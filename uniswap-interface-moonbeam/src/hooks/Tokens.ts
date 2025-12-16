@@ -102,7 +102,10 @@ export function useToken(tokenAddress?: string): Token | undefined | null {
 }
 
 export function useCurrency(currencyId: string | undefined): Currency | null | undefined {
-  const isETH = currencyId?.toUpperCase() === 'ETH'
-  const token = useToken(isETH ? undefined : currencyId)
-  return isETH ? DEV : token
+  const { chainId } = useActiveWeb3React()
+  // Check if currencyId is native currency (ETH or NBC)
+  const isNativeCurrency = currencyId?.toUpperCase() === 'ETH' || currencyId?.toUpperCase() === 'NBC' || 
+    (chainId && currencyId?.toUpperCase() === (chainId === 1281 ? 'NBC' : 'ETH'))
+  const token = useToken(isNativeCurrency ? undefined : currencyId)
+  return isNativeCurrency ? DEV : token
 }

@@ -9,7 +9,7 @@ import { useActiveWeb3React } from '../../hooks'
 import { useAllTokens, useToken } from '../../hooks/Tokens'
 import { useSelectedListInfo } from '../../state/lists/hooks'
 import { CloseIcon, LinkStyledButton, TYPE } from '../../theme'
-import { isAddress } from '../../utils'
+import { isAddress, getNativeCurrencySymbol } from '../../utils'
 import Card from '../Card'
 import Column from '../Column'
 import ListLogo from '../ListLogo'
@@ -65,10 +65,12 @@ export function CurrencySearch({
     }
   }, [isAddressSearch])
 
-  const showETH: boolean = useMemo(() => {
+  // Show native currency (NBC on NBC Chain, DEV on other chains) when search is empty or matches native currency keywords
+  const showNativeCurrency: boolean = useMemo(() => {
     const s = searchQuery.toLowerCase().trim()
-    return s === '' || s === 'd' || s === 'de' || s === 'dev'
-  }, [searchQuery])
+    const nativeSymbol = getNativeCurrencySymbol(chainId).toLowerCase()
+    return s === '' || s === 'd' || s === 'de' || s === 'dev' || s === 'n' || s === 'nb' || s === 'nbc' || s === nativeSymbol
+  }, [searchQuery, chainId])
 
   const tokenComparator = useTokenComparator(invertSearchOrder)
 
@@ -122,7 +124,8 @@ export function CurrencySearch({
     (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
         const s = searchQuery.toLowerCase().trim()
-        if (s === 'dev') {
+        const nativeSymbol = getNativeCurrencySymbol(chainId).toLowerCase()
+        if (s === 'dev' || s === 'nbc' || s === nativeSymbol) {
           handleCurrencySelect(DEV)
         } else if (filteredSortedTokens.length > 0) {
           if (
@@ -134,7 +137,7 @@ export function CurrencySearch({
         }
       }
     },
-    [filteredSortedTokens, handleCurrencySelect, searchQuery]
+    [filteredSortedTokens, handleCurrencySelect, searchQuery, chainId]
   )
 
   const selectedListInfo = useSelectedListInfo()
@@ -176,7 +179,7 @@ export function CurrencySearch({
           {({ height }: { height: number }) => (
             <CurrencyList
               height={height}
-              showETH={showETH}
+              showNativeCurrency={showNativeCurrency}
               currencies={filteredSortedTokens}
               onCurrencySelect={handleCurrencySelect}
               otherCurrency={otherSelectedCurrency}

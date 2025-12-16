@@ -113,3 +113,6 @@ export function isTokenOnList(defaultTokens: TokenAddressMap, currency?: Currenc
   if (currency === DEV) return true
   return Boolean(currency instanceof Token && defaultTokens[currency.chainId]?.[currency.address])
 }
+
+// Re-export currencyId from currencyId.ts
+export { currencyId } from './currencyId'

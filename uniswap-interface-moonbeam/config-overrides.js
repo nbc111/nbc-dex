@@ -21,15 +21,20 @@ module.exports = function override(config, env) {
   );
 
   // 确保 process 在浏览器环境中可用
-  config.resolve.fallback = {
-    ...config.resolve.fallback,
-    "process": require.resolve("process/browser"),
-  };
+  config.resolve.fallback = config.resolve.fallback || {};
+  config.resolve.fallback.process = require.resolve("process/browser");
   
   // 添加 process 插件
   config.plugins.push(
     new webpack.ProvidePlugin({
       process: 'process/browser',
+    })
+  );
+  
+  // 确保 process.env 在所有地方都可用
+  config.plugins.push(
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     })
   );
 

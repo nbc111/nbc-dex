@@ -1,4 +1,4 @@
-import { diffTokenLists, TokenList } from '@uniswap/token-lists'
+import { diffTokenLists, TokenList, TokenInfo } from '@uniswap/token-lists'
 import React, { useCallback, useMemo } from 'react'
 import ReactGA from 'react-ga'
 import { useDispatch } from 'react-redux'
@@ -67,7 +67,7 @@ export default function ListUpdatePopup({
               <ul>
                 {tokensAdded.length > 0 ? (
                   <li>
-                    {tokensAdded.map((token, i) => (
+                    {tokensAdded.map((token: TokenInfo, i: number) => (
                       <React.Fragment key={`${token.chainId}-${token.address}`}>
                         <strong title={token.address}>{token.symbol}</strong>
                         {i === tokensAdded.length - 1 ? null : ', '}
@@ -78,7 +78,7 @@ export default function ListUpdatePopup({
                 ) : null}
                 {tokensRemoved.length > 0 ? (
                   <li>
-                    {tokensRemoved.map((token, i) => (
+                    {tokensRemoved.map((token: TokenInfo, i: number) => (
                       <React.Fragment key={`${token.chainId}-${token.address}`}>
                         <strong title={token.address}>{token.symbol}</strong>
                         {i === tokensRemoved.length - 1 ? null : ', '}

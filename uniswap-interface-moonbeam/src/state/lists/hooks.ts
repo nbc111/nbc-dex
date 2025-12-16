@@ -46,14 +46,14 @@ export function listToTokenMap(list: TokenList): TokenAddressMap {
   if (result) return result
 
   const map = list.tokens.reduce<TokenAddressMap>(
-    (tokenMap, tokenInfo) => {
+    (tokenMap: TokenAddressMap, tokenInfo: TokenInfo) => {
       const tags: TagInfo[] =
         tokenInfo.tags
-          ?.map(tagId => {
+          ?.map((tagId: string) => {
             if (!list.tags?.[tagId]) return undefined
             return { ...list.tags[tagId], id: tagId }
           })
-          ?.filter((x): x is TagInfo => Boolean(x)) ?? []
+          ?.filter((x: any): x is TagInfo => Boolean(x)) ?? []
       const token = new WrappedTokenInfo(tokenInfo, tags)
       if (tokenMap[token.chainId][token.address] !== undefined) throw Error('Duplicate tokens.')
       return {

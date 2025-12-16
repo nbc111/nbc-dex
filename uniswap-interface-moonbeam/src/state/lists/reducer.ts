@@ -43,7 +43,7 @@ const initialState: ListsState = {
       pendingUpdate: null
     }
   },
-  selectedListUrl: undefined
+  selectedListUrl: DEFAULT_TOKEN_LIST_URL
 }
 
 export default createReducer(initialState, builder =>
@@ -132,7 +132,10 @@ export default createReducer(initialState, builder =>
       // state loaded from localStorage, but new lists have never been initialized
       if (!state.lastInitializedDefaultListOfLists) {
         state.byUrl = initialState.byUrl
-        state.selectedListUrl = undefined
+        // If no list is selected, select the default list
+        if (!state.selectedListUrl) {
+          state.selectedListUrl = DEFAULT_TOKEN_LIST_URL
+        }
       } else if (state.lastInitializedDefaultListOfLists) {
         const lastInitializedSet = state.lastInitializedDefaultListOfLists.reduce<Set<string>>(
           (s, l) => s.add(l),
@@ -151,6 +154,11 @@ export default createReducer(initialState, builder =>
             delete state.byUrl[listUrl]
           }
         })
+      }
+
+      // If no list is selected after update, select the default list
+      if (!state.selectedListUrl && state.byUrl[DEFAULT_TOKEN_LIST_URL]?.current) {
+        state.selectedListUrl = DEFAULT_TOKEN_LIST_URL
       }
 
       state.lastInitializedDefaultListOfLists = DEFAULT_LIST_OF_LISTS

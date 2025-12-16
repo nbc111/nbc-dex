@@ -1,9 +1,11 @@
-import { Currency, DEV, Token } from 'moonbeamswap'
+import { ChainId, Currency, DEV, Token } from 'moonbeamswap'
 import React, { useMemo } from 'react'
 import styled from 'styled-components'
 
 import EthereumLogo from '../../assets/images/ethereum-logo.png'
+import NbcLogo from '../../assets/images/nbc.png'
 import useHttpLocations from '../../hooks/useHttpLocations'
+import { useActiveWeb3React } from '../../hooks'
 import { WrappedTokenInfo } from '../../state/lists/hooks'
 import Logo from '../Logo'
 
@@ -31,6 +33,7 @@ export default function CurrencyLogo({
   size?: string
   style?: React.CSSProperties
 }) {
+  const { chainId } = useActiveWeb3React()
   const uriLocations = useHttpLocations(currency instanceof WrappedTokenInfo ? currency.logoURI : undefined)
 
   const srcs: string[] = useMemo(() => {
@@ -47,7 +50,9 @@ export default function CurrencyLogo({
   }, [currency, uriLocations])
 
   if (currency === DEV) {
-    return <StyledEthereumLogo src={EthereumLogo} size={size} style={style} />
+    // Use NBC logo on NBC Chain (1281), otherwise use Ethereum logo
+    const nativeLogo = chainId === ChainId.STANDALONE ? NbcLogo : EthereumLogo
+    return <StyledEthereumLogo src={nativeLogo} size={size} style={style} />
   }
 
   return <StyledLogo size={size} srcs={srcs} alt={`${currency?.symbol ?? 'token'} logo`} style={style} />

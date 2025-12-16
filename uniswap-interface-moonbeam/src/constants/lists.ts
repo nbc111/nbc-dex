@@ -1,6 +1,7 @@
 // the Nbc Uniswap Default token list lives here
-export const DEFAULT_TOKEN_LIST_URL =
-  'https://raw.githubusercontent.com/nbc111/nbc-dex/main/uniswap-interface-moonbeam/src/tokens.json'
+// Using 'local://default' as a special identifier for the local token list
+// This prevents the app from trying to fetch from GitHub when the file isn't available
+export const DEFAULT_TOKEN_LIST_URL = 'local://default'
 
 export const DEFAULT_LIST_OF_LISTS: string[] = [
   DEFAULT_TOKEN_LIST_URL

@@ -15,7 +15,7 @@ import CurrencyLogo from '../CurrencyLogo'
 import { MouseoverTooltip } from '../Tooltip'
 import { FadedSpan, MenuItem } from './styleds'
 import Loader from '../Loader'
-import { isTokenOnList } from '../../utils'
+import { isTokenOnList, getNativeCurrencySymbol } from '../../utils'
 
 function currencyKey(currency: Currency): string {
   return currency instanceof Token ? currency.address : currency === DEV ? 'DEV' : ''
@@ -115,7 +115,7 @@ function CurrencyRow({
       <CurrencyLogo currency={currency} size={'24px'} />
       <Column>
         <Text title={currency.name} fontWeight={500}>
-          {currency.symbol}
+          {currency === DEV ? getNativeCurrencySymbol(chainId) : currency.symbol}
         </Text>
         <FadedSpan>
           {!isOnSelectedList && customAdded ? (
@@ -161,7 +161,7 @@ export default function CurrencyList({
   onCurrencySelect,
   otherCurrency,
   fixedListRef,
-  showETH
+  showNativeCurrency
 }: {
   height: number
   currencies: Currency[]
@@ -169,9 +169,10 @@ export default function CurrencyList({
   onCurrencySelect: (currency: Currency) => void
   otherCurrency?: Currency | null
   fixedListRef?: MutableRefObject<FixedSizeList | undefined>
-  showETH: boolean
+  showNativeCurrency: boolean
 }) {
-  const itemData = useMemo(() => (showETH ? [Currency.DEV, ...currencies] : currencies), [currencies, showETH])
+  // Add native currency (Currency.DEV) to the beginning of the list when showNativeCurrency is true
+  const itemData = useMemo(() => (showNativeCurrency ? [Currency.DEV, ...currencies] : currencies), [currencies, showNativeCurrency])
 
   const Row = useCallback(
     ({ data, index, style }) => {
