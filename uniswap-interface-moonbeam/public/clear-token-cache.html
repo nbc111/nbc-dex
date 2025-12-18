@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清除代币列表缓存</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #58a6ff; }
+        .button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover { background: #2ea043; }
+        .button-danger {
+            background: #da3633;
+        }
+        .button-danger:hover { background: #f85149; }
+        .info {
+            background: #161b22;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border: 1px solid #30363d;
+        }
+        .success {
+            color: #3fb950;
+            background: #1a472a;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #f85149;
+            background: #3d1f1f;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 清除代币列表缓存</h1>
+    
+    <div class="info">
+        <p><strong>问题：</strong>代币选择弹窗中只显示了部分代币（例如只显示 NBC 和 WNBC）</p>
+        <p><strong>原因：</strong>浏览器 localStorage 中缓存了旧的代币列表</p>
+        <p><strong>解决：</strong>清除 localStorage 中的 Redux 缓存数据</p>
+    </div>
+
+    <div id="status"></div>
+
+    <h2>操作</h2>
+    <button class="button" onclick="clearReduxCache()">清除 Redux 缓存</button>
+    <button class="button button-danger" onclick="clearAllLocalStorage()">清除所有 localStorage</button>
+    <button class="button" onclick="checkTokenList()">检查代币列表</button>
+
+    <h2>说明</h2>
+    <div class="info">
+        <p><strong>清除 Redux 缓存：</strong>只清除与 Redux 相关的缓存数据，保留其他设置</p>
+        <p><strong>清除所有 localStorage：</strong>清除所有本地存储数据（包括用户设置、交易历史等）</p>
+        <p><strong>检查代币列表：</strong>查看当前 localStorage 中存储的代币列表信息</p>
+    </div>
+
+    <h2>预期结果</h2>
+    <div class="info">
+        <p>清除缓存后，代币选择弹窗应该显示以下 12 个代币（chainId 1281）：</p>
+        <ul>
+            <li>NBC (NBC Token)</li>
+            <li>WNBC (Wrapped NBC)</li>
+            <li>BTC (Wrapped Bitcoin)</li>
+            <li>ETH (Wrapped Ethereum)</li>
+            <li>SOL (Wrapped Solana)</li>
+            <li>BNB (Wrapped BNB)</li>
+            <li>XRP (Wrapped XRP)</li>
+            <li>LTC (Wrapped Litecoin)</li>
+            <li>DOGE (Wrapped Dogecoin)</li>
+            <li>PEPE (Pepe Token)</li>
+            <li>USDT (Tether USD)</li>
+            <li>SUI (Sui Token)</li>
+        </ul>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            statusDiv.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+
+        function clearReduxCache() {
+            try {
+                let cleared = 0;
+                const keys = Object.keys(localStorage);
+                
+                keys.forEach(key => {
+                    if (key.includes('redux') || key.includes('persist') || key.includes('lists')) {
+                        localStorage.removeItem(key);
+                        cleared++;
+                    }
+                });
+
+                if (cleared > 0) {
+                    showStatus(`✅ 成功清除了 ${cleared} 个 Redux 相关的缓存项。请刷新 DEX 页面查看效果。`, 'success');
+                } else {
+                    showStatus('ℹ️ 没有找到需要清除的 Redux 缓存数据。', 'info');
+                }
+            } catch (error) {
+                showStatus(`❌ 清除缓存时出错: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAllLocalStorage() {
+            if (confirm('确定要清除所有 localStorage 数据吗？这将清除所有本地存储，包括用户设置和交易历史。')) {
+                try {
+                    localStorage.clear();
+                    showStatus('✅ 已清除所有 localStorage 数据。请刷新 DEX 页面查看效果。', 'success');
+                } catch (error) {
+                    showStatus(`❌ 清除缓存时出错: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function checkTokenList() {
+            try {
+                const keys = Object.keys(localStorage);
+                const reduxKeys = keys.filter(key => key.includes('redux') || key.includes('persist') || key.includes('lists'));
+                
+                if (reduxKeys.length === 0) {
+                    showStatus('ℹ️ 没有找到 Redux 相关的缓存数据。', 'info');
+                    return;
+                }
+
+                let info = '<strong>找到的 Redux 缓存键：</strong><ul>';
+                reduxKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    const size = new Blob([value]).size;
+                    info += `<li><code>${key}</code> (${(size / 1024).toFixed(2)} KB)</li>`;
+                });
+                info += '</ul>';
+
+                // 尝试解析 lists 数据
+                reduxKeys.forEach(key => {
+                    if (key.includes('lists') || key.includes('persist')) {
+                        try {
+                            const data = JSON.parse(localStorage.getItem(key));
+                            if (data.lists) {
+                                info += '<br><strong>代币列表信息：</strong><ul>';
+                                if (data.lists.byUrl) {
+                                    Object.keys(data.lists.byUrl).forEach(url => {
+                                        const list = data.lists.byUrl[url];
+                                        if (list && list.current && list.current.tokens) {
+                                            const tokenCount = list.current.tokens.length;
+                                            const chain1281Count = list.current.tokens.filter(t => t.chainId === 1281).length;
+                                            info += `<li>列表 <code>${url}</code>: 总共 ${tokenCount} 个代币，其中 ${chain1281Count} 个是 chainId 1281</li>`;
+                                        }
+                                    });
+                                }
+                                info += '</ul>';
+                            }
+                        } catch (e) {
+                            // 忽略解析错误
+                        }
+                    }
+                });
+
+                showStatus(info, 'info');
+            } catch (error) {
+                showStatus(`❌ 检查时出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            checkTokenList();
+        };
+    </script>
+</body>
+</html>
+

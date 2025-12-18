@@ -1,11 +1,13 @@
-import { Currency, CurrencyAmount, Fraction, Percent } from 'moonbeamswap'
+import { Currency, CurrencyAmount, DEV, Fraction, Percent } from 'moonbeamswap'
 import React from 'react'
 import { Text } from 'rebass'
 import { ButtonPrimary } from '../../components/Button'
 import { RowBetween, RowFixed } from '../../components/Row'
 import CurrencyLogo from '../../components/CurrencyLogo'
+import { useActiveWeb3React } from '../../hooks'
 import { Field } from '../../state/mint/actions'
 import { TYPE } from '../../theme'
+import { getNativeCurrencySymbol } from '../../utils'
 
 export function ConfirmAddModalBottom({
   noLiquidity,
@@ -22,17 +24,31 @@ export function ConfirmAddModalBottom({
   poolTokenPercentage?: Percent
   onAdd: () => void
 }) {
+  const { chainId } = useActiveWeb3React()
+
+  // Get the display symbol for the currency (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+  const getDisplaySymbol = (currency: Currency | undefined): string => {
+    if (!currency) return ''
+    if (currency === DEV) {
+      return getNativeCurrencySymbol(chainId)
+    }
+    return currency.symbol || ''
+  }
+
+  const symbolA = getDisplaySymbol(currencies[Field.CURRENCY_A])
+  const symbolB = getDisplaySymbol(currencies[Field.CURRENCY_B])
+
   return (
     <>
       <RowBetween>
-        <TYPE.body>{currencies[Field.CURRENCY_A]?.symbol} Deposited</TYPE.body>
+        <TYPE.body>{symbolA} Deposited</TYPE.body>
         <RowFixed>
           <CurrencyLogo currency={currencies[Field.CURRENCY_A]} style={{ marginRight: '8px' }} />
           <TYPE.body>{parsedAmounts[Field.CURRENCY_A]?.toSignificant(6)}</TYPE.body>
         </RowFixed>
       </RowBetween>
       <RowBetween>
-        <TYPE.body>{currencies[Field.CURRENCY_B]?.symbol} Deposited</TYPE.body>
+        <TYPE.body>{symbolB} Deposited</TYPE.body>
         <RowFixed>
           <CurrencyLogo currency={currencies[Field.CURRENCY_B]} style={{ marginRight: '8px' }} />
           <TYPE.body>{parsedAmounts[Field.CURRENCY_B]?.toSignificant(6)}</TYPE.body>
@@ -41,16 +57,12 @@ export function ConfirmAddModalBottom({
       <RowBetween>
         <TYPE.body>Rates</TYPE.body>
         <TYPE.body>
-          {`1 ${currencies[Field.CURRENCY_A]?.symbol} = ${price?.toSignificant(4)} ${
-            currencies[Field.CURRENCY_B]?.symbol
-          }`}
+          {`1 ${symbolA} = ${price?.toSignificant(4)} ${symbolB}`}
         </TYPE.body>
       </RowBetween>
       <RowBetween style={{ justifyContent: 'flex-end' }}>
         <TYPE.body>
-          {`1 ${currencies[Field.CURRENCY_B]?.symbol} = ${price?.invert().toSignificant(4)} ${
-            currencies[Field.CURRENCY_A]?.symbol
-          }`}
+          {`1 ${symbolB} = ${price?.invert().toSignificant(4)} ${symbolA}`}
         </TYPE.body>
       </RowBetween>
       <RowBetween>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>验证交易对地址</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { background: #252526; padding: 15px; border-radius: 5px; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+    </style>
+</head>
+<body>
+    <h1>验证交易对地址计算</h1>
+    <button onclick="verify()">验证</button>
+    <pre id="output"></pre>
+
+    <script>
+        // 确保 ethers.js 加载
+        function loadEthers() {
+            return new Promise((resolve, reject) => {
+                if (typeof ethers !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js';
+                script.onload = () => {
+                    console.log('✅ ethers.js 已加载');
+                    resolve();
+                };
+                script.onerror = () => reject(new Error('无法加载 ethers.js'));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function verify() {
+            const output = document.getElementById('output');
+            output.textContent = '加载 ethers.js...\n';
+            
+            try {
+                await loadEthers();
+                output.textContent = '验证中...\n\n';
+            } catch (error) {
+                output.textContent = `❌ 无法加载 ethers.js: ${error.message}\n`;
+                return;
+            }
+            const output = document.getElementById('output');
+            output.textContent = '验证中...\n\n';
+
+            const CONFIG = {
+                factory: '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793',
+                wdev: '0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC',
+                eth: '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3',
+                initCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f',
+                actualPair: '0x28fb030cabb1ee0ca181f23f7004a38d301570bf'
+            };
+
+            try {
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                
+                // 1. 从 Factory 获取实际地址
+                const factoryABI = ['function getPair(address tokenA, address tokenB) external view returns (address pair)'];
+                const factory = new ethers.Contract(CONFIG.factory, factoryABI, provider);
+                const actualAddress = await factory.getPair(CONFIG.wdev, CONFIG.eth);
+                output.textContent += `实际交易对地址: ${actualAddress}\n`;
+
+                // 2. 计算 CREATE2 地址
+                const token0 = CONFIG.eth.toLowerCase() < CONFIG.wdev.toLowerCase() ? CONFIG.eth : CONFIG.wdev;
+                const token1 = CONFIG.eth.toLowerCase() < CONFIG.wdev.toLowerCase() ? CONFIG.wdev : CONFIG.eth;
+                
+                output.textContent += `\nToken0 (较小): ${token0}\n`;
+                output.textContent += `Token1 (较大): ${token1}\n`;
+
+                const salt = ethers.utils.solidityKeccak256(
+                    ['address', 'address'],
+                    [token0, token1]
+                );
+
+                const calculatedAddress = ethers.utils.getCreate2Address(
+                    CONFIG.factory,
+                    salt,
+                    CONFIG.initCodeHash
+                );
+
+                output.textContent += `\n计算的地址: ${calculatedAddress}\n`;
+                output.textContent += `实际地址: ${actualAddress}\n\n`;
+
+                if (calculatedAddress.toLowerCase() === actualAddress.toLowerCase()) {
+                    output.textContent += '<span class="success">✅ 地址匹配！</span>\n';
+                } else {
+                    output.textContent += '<span class="error">❌ 地址不匹配！</span>\n';
+                    output.textContent += '\n可能的原因：\n';
+                    output.textContent += '1. Init Code Hash 配置错误\n';
+                    output.textContent += '2. Factory 地址配置错误\n';
+                    output.textContent += '3. Token 地址顺序问题\n';
+                }
+
+                // 3. 检查 Pair 合约的 token0 和 token1
+                const pairABI = [
+                    'function token0() external view returns (address)',
+                    'function token1() external view returns (address)',
+                    'function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)'
+                ];
+                const pair = new ethers.Contract(actualAddress, pairABI, provider);
+                
+                const pairToken0 = await pair.token0();
+                const pairToken1 = await pair.token1();
+                const reserves = await pair.getReserves();
+
+                output.textContent += `\n=== Pair 合约信息 ===\n`;
+                output.textContent += `Pair Token0: ${pairToken0}\n`;
+                output.textContent += `Pair Token1: ${pairToken1}\n`;
+                output.textContent += `Reserve0: ${ethers.utils.formatEther(reserves.reserve0)}\n`;
+                output.textContent += `Reserve1: ${ethers.utils.formatEther(reserves.reserve1)}\n`;
+
+                // 4. 验证 SDK 计算
+                output.textContent += `\n=== SDK 计算验证 ===\n`;
+                output.textContent += `WDEV 地址: ${CONFIG.wdev}\n`;
+                output.textContent += `ETH 地址: ${CONFIG.eth}\n`;
+                
+                const wdevToken = { address: CONFIG.wdev, chainId: 1281 };
+                const ethToken = { address: CONFIG.eth, chainId: 1281 };
+                
+                // 模拟 SDK 的 sortsBefore 逻辑
+                const wdevLower = CONFIG.wdev.toLowerCase();
+                const ethLower = CONFIG.eth.toLowerCase();
+                const sdkToken0 = wdevLower < ethLower ? wdevToken : ethToken;
+                const sdkToken1 = wdevLower < ethLower ? ethToken : wdevToken;
+                
+                output.textContent += `SDK Token0: ${sdkToken0.address}\n`;
+                output.textContent += `SDK Token1: ${sdkToken1.address}\n`;
+                
+                const sdkSalt = ethers.utils.solidityKeccak256(
+                    ['address', 'address'],
+                    [sdkToken0.address, sdkToken1.address]
+                );
+                const sdkCalculated = ethers.utils.getCreate2Address(
+                    CONFIG.factory,
+                    sdkSalt,
+                    CONFIG.initCodeHash
+                );
+                
+                output.textContent += `SDK 计算的地址: ${sdkCalculated}\n`;
+                
+                if (sdkCalculated.toLowerCase() === actualAddress.toLowerCase()) {
+                    output.textContent += '<span class="success">✅ SDK 地址计算正确！</span>\n';
+                } else {
+                    output.textContent += '<span class="error">❌ SDK 地址计算错误！</span>\n';
+                }
+
+            } catch (error) {
+                output.textContent += `\n❌ 错误: ${error.message}\n`;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

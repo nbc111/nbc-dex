@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swap 诊断工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            border-left: 4px solid #007bff;
+            padding-left: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+            font-weight: bold;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Swap 诊断工具</h1>
+        <p>此工具用于诊断为什么 Swap 页面无法计算输出数量。</p>
+        
+        <div class="section">
+            <h2>1. 检查配置</h2>
+            <button onclick="checkConfig()">检查配置</button>
+            <pre id="configResult"></pre>
+        </div>
+
+        <div class="section">
+            <h2>2. 检查交易对地址计算</h2>
+            <button onclick="checkPairAddress()">计算 WDEV/ETH 交易对地址</button>
+            <pre id="pairAddressResult"></pre>
+        </div>
+
+        <div class="section">
+            <h2>3. 检查交易对是否存在</h2>
+            <button onclick="checkPairExists()">检查交易对是否存在</button>
+            <pre id="pairExistsResult"></pre>
+        </div>
+
+        <div class="section">
+            <h2>4. 检查 Reserves</h2>
+            <button onclick="checkReserves()">获取 Reserves</button>
+            <pre id="reservesResult"></pre>
+        </div>
+
+        <div class="section">
+            <h2>5. 检查 Multicall</h2>
+            <button onclick="checkMulticall()">测试 Multicall</button>
+            <pre id="multicallResult"></pre>
+        </div>
+
+        <div class="section">
+            <h2>6. 完整诊断</h2>
+            <button onclick="fullDiagnosis()">运行完整诊断</button>
+            <pre id="fullDiagnosisResult"></pre>
+        </div>
+    </div>
+
+    <script>
+        // 配置常量
+        const CONFIG = {
+            chainId: 1281,
+            factory: '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793',
+            wdev: '0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC',
+            eth: '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3',
+            multicall: '0xF396bb272c5f11EF5E172bAEEC49e9cC895c589a',
+            initCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'
+        };
+
+        // 检查是否连接了钱包
+        function checkWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                throw new Error('请先连接 MetaMask 钱包');
+            }
+            return window.ethereum;
+        }
+
+        // 获取 provider
+        async function getProvider() {
+            const ethereum = checkWallet();
+            await ethereum.request({ method: 'eth_requestAccounts' });
+            return ethereum;
+        }
+
+        // 检查配置
+        async function checkConfig() {
+            const result = document.getElementById('configResult');
+            result.textContent = '检查中...\n';
+            
+            try {
+                const ethereum = await getProvider();
+                const chainId = await ethereum.request({ method: 'eth_chainId' });
+                const chainIdInt = parseInt(chainId, 16);
+                
+                let output = '=== 配置检查 ===\n\n';
+                output += `当前 Chain ID: ${chainIdInt} (期望: ${CONFIG.chainId})\n`;
+                output += chainIdInt === CONFIG.chainId ? '✅ Chain ID 正确\n' : '❌ Chain ID 不匹配\n';
+                output += `\nFactory 地址: ${CONFIG.factory}\n`;
+                output += `WDEV 地址: ${CONFIG.wdev}\n`;
+                output += `ETH 地址: ${CONFIG.eth}\n`;
+                output += `Multicall 地址: ${CONFIG.multicall}\n`;
+                output += `Init Code Hash: ${CONFIG.initCodeHash}\n`;
+                
+                result.textContent = output;
+            } catch (error) {
+                result.textContent = `❌ 错误: ${error.message}`;
+            }
+        }
+
+        // 计算交易对地址 (使用 CREATE2)
+        async function calculatePairAddress(tokenA, tokenB) {
+            // 排序 tokens
+            const tokens = tokenA.toLowerCase() < tokenB.toLowerCase() ? [tokenA, tokenB] : [tokenB, tokenA];
+            
+            // 使用 ethers.js 计算 CREATE2 地址
+            if (typeof ethers === 'undefined') {
+                // 如果没有 ethers，使用手动计算
+                const salt = keccak256(abi.encode(['address', 'address'], tokens));
+                // 这里需要完整的 CREATE2 计算，简化版本
+                return '需要 ethers.js 库';
+            }
+            
+            const salt = ethers.utils.solidityKeccak256(
+                ['address', 'address'],
+                [tokens[0], tokens[1]]
+            );
+            
+            const bytecodeHash = CONFIG.initCodeHash;
+            const pairAddress = ethers.utils.getCreate2Address(
+                CONFIG.factory,
+                salt,
+                bytecodeHash
+            );
+            
+            return pairAddress;
+        }
+
+        // 检查交易对地址
+        async function checkPairAddress() {
+            const result = document.getElementById('pairAddressResult');
+            result.textContent = '计算中...\n';
+            
+            try {
+                // 手动计算 CREATE2 地址
+                const token0 = CONFIG.wdev.toLowerCase() < CONFIG.eth.toLowerCase() ? CONFIG.wdev : CONFIG.eth;
+                const token1 = CONFIG.wdev.toLowerCase() < CONFIG.eth.toLowerCase() ? CONFIG.eth : CONFIG.wdev;
+                
+                let output = '=== 交易对地址计算 ===\n\n';
+                output += `Token0 (较小地址): ${token0}\n`;
+                output += `Token1 (较大地址): ${token1}\n`;
+                output += `Factory: ${CONFIG.factory}\n`;
+                output += `Init Code Hash: ${CONFIG.initCodeHash}\n\n`;
+                output += '⚠️ 需要 ethers.js 库来精确计算 CREATE2 地址\n';
+                output += '请使用浏览器控制台运行完整诊断\n';
+                
+                result.textContent = output;
+            } catch (error) {
+                result.textContent = `❌ 错误: ${error.message}`;
+            }
+        }
+
+        // 检查交易对是否存在
+        async function checkPairExists() {
+            const result = document.getElementById('pairExistsResult');
+            result.textContent = '检查中...\n';
+            
+            try {
+                const ethereum = await getProvider();
+                
+                // Factory ABI
+                const factoryABI = [
+                    'function getPair(address tokenA, address tokenB) external view returns (address pair)'
+                ];
+                
+                // 调用 getPair
+                const data = ethers.utils.interface.encodeFunctionData(
+                    'getPair',
+                    [CONFIG.wdev, CONFIG.eth]
+                );
+                
+                const pairAddress = await ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: CONFIG.factory,
+                        data: data
+                    }, 'latest']
+                });
+                
+                const decoded = ethers.utils.defaultAbiCoder.decode(['address'], pairAddress);
+                const pair = decoded[0];
+                
+                let output = '=== 交易对存在性检查 ===\n\n';
+                output += `WDEV: ${CONFIG.wdev}\n`;
+                output += `ETH: ${CONFIG.eth}\n\n`;
+                output += `交易对地址: ${pair}\n`;
+                
+                if (pair === '0x0000000000000000000000000000000000000000') {
+                    output += '❌ 交易对不存在！\n';
+                    output += '请先在 Pool 页面创建流动性池\n';
+                } else {
+                    output += '✅ 交易对存在\n';
+                }
+                
+                result.textContent = output;
+                window.pairAddress = pair;
+            } catch (error) {
+                result.textContent = `❌ 错误: ${error.message}\n\n请确保已安装 ethers.js 库`;
+            }
+        }
+
+        // 检查 Reserves
+        async function checkReserves() {
+            const result = document.getElementById('reservesResult');
+            result.textContent = '检查中...\n';
+            
+            try {
+                if (!window.pairAddress) {
+                    result.textContent = '⚠️ 请先运行"检查交易对是否存在"\n';
+                    return;
+                }
+                
+                if (window.pairAddress === '0x0000000000000000000000000000000000000000') {
+                    result.textContent = '❌ 交易对不存在，无法获取 Reserves\n';
+                    return;
+                }
+                
+                const ethereum = await getProvider();
+                
+                // Pair ABI
+                const pairABI = [
+                    'function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)',
+                    'function token0() external view returns (address)',
+                    'function token1() external view returns (address)'
+                ];
+                
+                // 获取 reserves
+                const reservesData = ethers.utils.interface.encodeFunctionData('getReserves', []);
+                const reservesResult = await ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: window.pairAddress,
+                        data: reservesData
+                    }, 'latest']
+                });
+                
+                const decoded = ethers.utils.defaultAbiCoder.decode(
+                    ['uint112', 'uint112', 'uint32'],
+                    reservesResult
+                );
+                
+                let output = '=== Reserves 检查 ===\n\n';
+                output += `交易对地址: ${window.pairAddress}\n\n`;
+                output += `Reserve0: ${ethers.utils.formatEther(decoded[0])}\n`;
+                output += `Reserve1: ${ethers.utils.formatEther(decoded[1])}\n`;
+                output += `最后更新时间: ${decoded[2]}\n\n`;
+                
+                if (decoded[0] === '0' && decoded[1] === '0') {
+                    output += '❌ Reserves 为 0，流动性池为空\n';
+                } else {
+                    output += '✅ Reserves 正常\n';
+                }
+                
+                result.textContent = output;
+            } catch (error) {
+                result.textContent = `❌ 错误: ${error.message}\n\n请确保已安装 ethers.js 库`;
+            }
+        }
+
+        // 检查 Multicall
+        async function checkMulticall() {
+            const result = document.getElementById('multicallResult');
+            result.textContent = '检查中...\n';
+            
+            try {
+                if (!window.pairAddress || window.pairAddress === '0x0000000000000000000000000000000000000000') {
+                    result.textContent = '⚠️ 请先确保交易对存在\n';
+                    return;
+                }
+                
+                const ethereum = await getProvider();
+                
+                // Multicall ABI
+                const multicallABI = [
+                    'function aggregate(tuple(address target, bytes callData)[] calls) external returns (uint256 blockNumber, bytes[] returnData)'
+                ];
+                
+                // 准备调用数据
+                const pairABI = ['function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)'];
+                const callData = ethers.utils.interface.encodeFunctionData('getReserves', []);
+                
+                const calls = [[window.pairAddress, callData]];
+                const aggregateData = ethers.utils.interface.encodeFunctionData('aggregate', [calls]);
+                
+                const multicallResult = await ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: CONFIG.multicall,
+                        data: aggregateData
+                    }, 'latest']
+                });
+                
+                let output = '=== Multicall 检查 ===\n\n';
+                output += `Multicall 地址: ${CONFIG.multicall}\n`;
+                output += `调用成功: ✅\n`;
+                output += `返回数据长度: ${multicallResult.length} 字符\n`;
+                
+                result.textContent = output;
+            } catch (error) {
+                result.textContent = `❌ 错误: ${error.message}\n\n请确保已安装 ethers.js 库`;
+            }
+        }
+
+        // 完整诊断
+        async function fullDiagnosis() {
+            const result = document.getElementById('fullDiagnosisResult');
+            result.textContent = '运行完整诊断...\n\n';
+            
+            try {
+                await checkConfig();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                await checkPairExists();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                if (window.pairAddress && window.pairAddress !== '0x0000000000000000000000000000000000000000') {
+                    await checkReserves();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    await checkMulticall();
+                }
+                
+                result.textContent += '\n=== 诊断完成 ===\n';
+                result.textContent += '请查看上面的各项检查结果\n';
+            } catch (error) {
+                result.textContent += `❌ 诊断过程中出错: ${error.message}\n`;
+            }
+        }
+
+        // 页面加载时检查
+        window.onload = function() {
+            if (typeof window.ethereum === 'undefined') {
+                document.body.innerHTML += '<div class="container"><div class="error">⚠️ 请先安装并连接 MetaMask 钱包</div></div>';
+            }
+        };
+        // 检查 ethers 是否已加载
+        function checkEthers() {
+            if (typeof ethers === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js';
+                script.onload = function() {
+                    console.log('✅ ethers.js 已加载');
+                    // 重新初始化
+                    if (window.ethersReady) {
+                        window.ethersReady();
+                    }
+                };
+                document.head.appendChild(script);
+                return false;
+            }
+            return true;
+        }
+
+        // 页面加载时检查
+        window.onload = function() {
+            if (typeof window.ethereum === 'undefined') {
+                document.body.innerHTML += '<div class="container"><div class="error">⚠️ 请先安装并连接 MetaMask 钱包</div></div>';
+            } else {
+                checkEthers();
+            }
+        };
+
+        // 等待 ethers 加载完成
+        window.ethersReady = function() {
+            console.log('ethers.js 已准备就绪');
+        };
+    </script>
+    
+    <!-- 加载 ethers.js -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <script>
+        // 确保 ethers 加载后再执行
+        if (typeof ethers !== 'undefined') {
+            window.ethersReady();
+        }
+    </script>
+</body>
+</html>

@@ -154,6 +154,33 @@ export default createReducer(initialState, builder =>
             delete state.byUrl[listUrl]
           }
         })
+
+        // Force update local token list if version changed
+        // This ensures the local list always uses the latest version from tokens.json
+        if (state.byUrl[DEFAULT_TOKEN_LIST_URL]?.current) {
+          const cachedList = state.byUrl[DEFAULT_TOKEN_LIST_URL].current
+          const newList = DCTDAO_DEFAULT_LIST
+          if (cachedList.version.major !== newList.version.major ||
+              cachedList.version.minor !== newList.version.minor ||
+              cachedList.version.patch !== newList.version.patch) {
+            // Version changed, force update to use the new list
+            state.byUrl[DEFAULT_TOKEN_LIST_URL] = {
+              ...state.byUrl[DEFAULT_TOKEN_LIST_URL],
+              current: newList,
+              pendingUpdate: null,
+              error: null,
+              loadingRequestId: null
+            }
+          }
+        } else {
+          // If local list doesn't exist, initialize it
+          state.byUrl[DEFAULT_TOKEN_LIST_URL] = {
+            error: null,
+            current: DCTDAO_DEFAULT_LIST,
+            loadingRequestId: null,
+            pendingUpdate: null
+          }
+        }
       }
 
       // If no list is selected after update, select the default list

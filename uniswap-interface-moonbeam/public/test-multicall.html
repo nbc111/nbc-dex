@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>测试 Multicall 合约</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { background: #252526; padding: 15px; border-radius: 5px; white-space: pre-wrap; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        button { background: #0e639c; color: white; border: none; padding: 10px 20px; border-radius: 3px; cursor: pointer; margin: 5px; }
+        button:hover { background: #1177bb; }
+    </style>
+</head>
+<body>
+    <h1>测试 Multicall 合约</h1>
+    <button onclick="testMulticall()">测试 Multicall</button>
+    <button onclick="testSingleCall()">测试单个调用</button>
+    <button onclick="testPairReserves()">测试交易对 Reserves</button>
+    <pre id="output"></pre>
+
+    <script>
+        const CONFIG = {
+            multicall: '0xF396bb272c5f11EF5E172bAEEC49e9cC895c589a',
+            pairAddress: '0x28fb030cabb1ee0ca181f23f7004a38d301570bf',
+            factory: '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793'
+        };
+
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+        }
+
+        async function testMulticall() {
+            const output = document.getElementById('output');
+            output.textContent = '测试 Multicall 合约...\n\n';
+
+            try {
+                // 检查 Multicall 合约代码
+                const code = await window.ethereum.request({
+                    method: 'eth_getCode',
+                    params: [CONFIG.multicall, 'latest']
+                });
+
+                if (code === '0x' || code === '0x0') {
+                    log('❌ Multicall 合约不存在！');
+                    log('请检查 Multicall 地址是否正确');
+                    return;
+                }
+
+                log(`✅ Multicall 合约存在 (${code.length} 字节)`);
+
+                // 测试简单的 aggregate 调用
+                const testCall = {
+                    target: CONFIG.pairAddress,
+                    callData: '0x0902f1ac' // getReserves()
+                };
+
+                const multicallABI = [
+                    'function aggregate(tuple(address target, bytes callData)[] calls) external returns (uint256 blockNumber, bytes[] returnData)'
+                ];
+
+                // 编码调用
+                const calls = [[testCall.target, testCall.callData]];
+                const aggregateData = '0x252dba42' + // function selector
+                    '0000000000000000000000000000000000000000000000000000000000000020' + // offset
+                    '0000000000000000000000000000000000000000000000000000000000000001' + // length
+                    testCall.target.slice(2).padStart(64, '0') + // target
+                    '0000000000000000000000000000000000000000000000000000000000000040' + // offset
+                    '0000000000000000000000000000000000000000000000000000000000000004' + // length
+                    testCall.callData.slice(2); // callData
+
+                log('\n尝试调用 Multicall...');
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: CONFIG.multicall,
+                        data: aggregateData
+                    }, 'latest']
+                });
+
+                log('✅ Multicall 调用成功！');
+                log(`返回数据长度: ${result.length} 字符`);
+
+                // 解析结果
+                if (result.length > 2) {
+                    const blockNumber = '0x' + result.slice(2, 66);
+                    const returnDataOffset = '0x' + result.slice(66, 130);
+                    log(`区块号: ${parseInt(blockNumber, 16)}`);
+                    log('✅ Multicall 工作正常');
+                }
+
+            } catch (error) {
+                log(`❌ 错误: ${error.message}`);
+                log('\n可能的原因：');
+                log('1. Multicall 合约未正确部署');
+                log('2. Multicall 合约地址错误');
+                log('3. RPC 节点问题');
+                log('4. Gas limit 不足');
+                console.error(error);
+            }
+        }
+
+        async function testSingleCall() {
+            const output = document.getElementById('output');
+            output.textContent = '测试单个调用（绕过 Multicall）...\n\n';
+
+            try {
+                const getReservesData = '0x0902f1ac';
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: CONFIG.pairAddress,
+                        data: getReservesData
+                    }, 'latest']
+                });
+
+                log('✅ 直接调用成功！');
+                log(`返回数据: ${result.substring(0, 100)}...`);
+
+                const reserve0 = BigInt('0x' + result.slice(2, 66));
+                const reserve1 = BigInt('0x' + result.slice(66, 130));
+                log(`Reserve0: ${Number(reserve0) / 1e18}`);
+                log(`Reserve1: ${Number(reserve1) / 1e18}`);
+
+            } catch (error) {
+                log(`❌ 错误: ${error.message}`);
+            }
+        }
+
+        async function testPairReserves() {
+            const output = document.getElementById('output');
+            output.textContent = '测试交易对 Reserves（小批量 Multicall）...\n\n';
+
+            try {
+                // 只测试一个调用
+                const pairABI = ['function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)'];
+                const getReservesData = '0x0902f1ac';
+
+                // 使用 Multicall 调用单个地址
+                const calls = [[CONFIG.pairAddress, getReservesData]];
+                
+                // 手动编码 aggregate 调用
+                let aggregateData = '0x252dba42'; // function selector
+                aggregateData += '0000000000000000000000000000000000000000000000000000000000000020'; // offset
+                aggregateData += '0000000000000000000000000000000000000000000000000000000000000001'; // length = 1
+                aggregateData += CONFIG.pairAddress.slice(2).padStart(64, '0'); // target
+                aggregateData += '0000000000000000000000000000000000000000000000000000000000000040'; // offset
+                aggregateData += '0000000000000000000000000000000000000000000000000000000000000004'; // length
+                aggregateData += getReservesData.slice(2); // callData
+
+                log('调用 Multicall (单个调用)...');
+                const result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: CONFIG.multicall,
+                        data: aggregateData
+                    }, 'latest']
+                });
+
+                log('✅ Multicall 调用成功！');
+                
+                // 解析结果
+                const blockNumber = parseInt('0x' + result.slice(2, 66), 16);
+                const returnDataOffset = parseInt('0x' + result.slice(66, 130), 16);
+                const returnDataLength = parseInt('0x' + result.slice(130, 194), 16);
+                const returnData = '0x' + result.slice(194, 194 + returnDataLength * 2);
+
+                log(`区块号: ${blockNumber}`);
+                log(`返回数据: ${returnData.substring(0, 100)}...`);
+
+                // 解析 reserves
+                const reserve0 = BigInt('0x' + returnData.slice(2, 66));
+                const reserve1 = BigInt('0x' + returnData.slice(66, 130));
+                log(`Reserve0: ${Number(reserve0) / 1e18}`);
+                log(`Reserve1: ${Number(reserve1) / 1e18}`);
+
+            } catch (error) {
+                log(`❌ 错误: ${error.message}`);
+                log('\n这说明 Multicall 合约可能有问题');
+                log('建议：检查 Multicall 合约是否正确部署');
+            }
+        }
+
+        window.onload = function() {
+            if (typeof window.ethereum === 'undefined') {
+                document.getElementById('output').textContent = '❌ 请先连接 MetaMask 钱包';
+            }
+        };
+    </script>
+</body>
+</html>

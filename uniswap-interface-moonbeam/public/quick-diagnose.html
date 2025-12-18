@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速诊断工具</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        pre {
+            background: #252526;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #3e3e42;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1177bb; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Swap 快速诊断</h1>
+    <button onclick="runDiagnosis()">运行诊断</button>
+    <pre id="output"></pre>
+
+    <script>
+        const CONFIG = {
+            chainId: 1281,
+            factory: '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793',
+            wdev: '0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC',
+            eth: '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3',
+            multicall: '0xF396bb272c5f11EF5E172bAEEC49e9cC895c589a'
+        };
+
+        async function runDiagnosis() {
+            const output = document.getElementById('output');
+            output.textContent = '开始诊断...\n\n';
+
+            try {
+                // 检查 MetaMask
+                if (typeof window.ethereum === 'undefined') {
+                    output.textContent += '❌ 请先连接 MetaMask 钱包\n';
+                    return;
+                }
+
+                // 检查 Chain ID
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                const chainIdInt = parseInt(chainId, 16);
+                output.textContent += `Chain ID: ${chainIdInt} ${chainIdInt === CONFIG.chainId ? '✅' : '❌'}\n\n`;
+
+                if (chainIdInt !== CONFIG.chainId) {
+                    output.textContent += '❌ 请切换到 NBC 链 (1281)\n';
+                    return;
+                }
+
+                // 检查交易对是否存在
+                output.textContent += '=== 检查交易对 ===\n';
+                const factoryABI = ['function getPair(address tokenA, address tokenB) external view returns (address pair)'];
+                const getPairData = '0xe6a43905' + 
+                    CONFIG.wdev.slice(2).padStart(64, '0') +
+                    CONFIG.eth.slice(2).padStart(64, '0');
+
+                const pairResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: CONFIG.factory, data: getPairData }, 'latest']
+                });
+
+                const pairAddress = '0x' + pairResult.slice(-40);
+                output.textContent += `交易对地址: ${pairAddress}\n`;
+
+                if (pairAddress === '0x0000000000000000000000000000000000000000') {
+                    output.textContent += '❌ 交易对不存在！请先创建流动性池\n';
+                    return;
+                }
+                output.textContent += '✅ 交易对存在\n\n';
+
+                // 检查 Reserves
+                output.textContent += '=== 检查 Reserves ===\n';
+                const pairABI = ['function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)'];
+                const getReservesData = '0x0902f1ac';
+                
+                const reservesResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: pairAddress, data: getReservesData }, 'latest']
+                });
+
+                // 解析结果 (uint112, uint112, uint32)
+                const reserve0Hex = '0x' + reservesResult.slice(2, 66);
+                const reserve1Hex = '0x' + reservesResult.slice(66, 130);
+                
+                const reserve0 = BigInt(reserve0Hex);
+                const reserve1 = BigInt(reserve1Hex);
+                
+                const reserve0Formatted = Number(reserve0) / 1e18;
+                const reserve1Formatted = Number(reserve1) / 1e18;
+
+                output.textContent += `Reserve0: ${reserve0Formatted.toFixed(6)}\n`;
+                output.textContent += `Reserve1: ${reserve1Formatted.toFixed(6)}\n`;
+
+                if (reserve0 === 0n && reserve1 === 0n) {
+                    output.textContent += '❌ Reserves 为 0，流动性池为空\n';
+                } else {
+                    output.textContent += '✅ Reserves 正常\n\n';
+                }
+
+                // 检查 Multicall
+                output.textContent += '=== 检查 Multicall ===\n';
+                output.textContent += `Multicall 地址: ${CONFIG.multicall}\n`;
+                
+                // 检查 Multicall 合约代码
+                const multicallCode = await window.ethereum.request({
+                    method: 'eth_getCode',
+                    params: [CONFIG.multicall, 'latest']
+                });
+
+                if (multicallCode === '0x' || multicallCode === '0x0') {
+                    output.textContent += '❌ Multicall 合约不存在\n';
+                } else {
+                    output.textContent += `✅ Multicall 合约存在 (${multicallCode.length} 字节)\n\n`;
+                }
+
+                // 总结
+                output.textContent += '=== 诊断总结 ===\n';
+                if (pairAddress !== '0x0000000000000000000000000000000000000000' && 
+                    reserve0 > 0n && reserve1 > 0n) {
+                    output.textContent += '✅ 所有检查通过！\n';
+                    output.textContent += '如果 Swap 页面仍无法计算，可能是：\n';
+                    output.textContent += '1. 浏览器缓存问题 - 尝试硬刷新 (Ctrl+Shift+R)\n';
+                    output.textContent += '2. React 状态未更新 - 等待几秒或切换代币\n';
+                    output.textContent += '3. Multicall 数据未同步 - 等待 5-10 秒\n';
+                } else {
+                    output.textContent += '❌ 发现问题，请根据上面的错误信息修复\n';
+                }
+
+            } catch (error) {
+                output.textContent += `\n❌ 错误: ${error.message}\n`;
+                console.error(error);
+            }
+        }
+
+        // 自动运行
+        window.onload = function() {
+            if (typeof window.ethereum !== 'undefined') {
+                runDiagnosis();
+            }
+        };
+    </script>
+</body>
+</html>

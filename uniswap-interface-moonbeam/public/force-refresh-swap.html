@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>强制刷新 Swap 状态</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { background: #252526; padding: 15px; border-radius: 5px; white-space: pre-wrap; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        button { background: #0e639c; color: white; border: none; padding: 10px 20px; border-radius: 3px; cursor: pointer; margin: 5px; }
+        button:hover { background: #1177bb; }
+        .section { margin: 20px 0; padding: 15px; background: #2d2d30; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 强制刷新 Swap 状态</h1>
+    
+    <div class="section">
+        <h2>操作</h2>
+        <button onclick="clearCache()">清除缓存</button>
+        <button onclick="reloadPage()">刷新页面</button>
+        <button onclick="checkMulticallState()">检查 Multicall 状态</button>
+        <button onclick="injectDebugCode()">注入调试代码</button>
+    </div>
+    
+    <pre id="output"></pre>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+        }
+
+        function clearCache() {
+            log('清除缓存中...');
+            try {
+                // 清除 localStorage 中的 Multicall 相关数据
+                const keys = Object.keys(localStorage);
+                let cleared = 0;
+                keys.forEach(key => {
+                    if (key.includes('multicall') || key.includes('redux')) {
+                        localStorage.removeItem(key);
+                        cleared++;
+                    }
+                });
+                log(`✅ 已清除 ${cleared} 个缓存项`);
+                log('请刷新页面以应用更改');
+            } catch (error) {
+                log(`❌ 错误: ${error.message}`);
+            }
+        }
+
+        function reloadPage() {
+            log('刷新页面...');
+            window.location.reload(true);
+        }
+
+        async function checkMulticallState() {
+            log('\n=== 检查 Multicall 状态 ===');
+            try {
+                const multicallState = localStorage.getItem('redux_localstorage_simple_multicall');
+                if (multicallState) {
+                    const parsed = JSON.parse(multicallState);
+                    log('找到 Multicall Redux 状态');
+                    log(`状态键数量: ${Object.keys(parsed).length}`);
+                    
+                    // 检查是否有交易对相关的调用
+                    const pairAddress = '0x28fb030cabb1ee0ca181f23f7004a38d301570bf';
+                    const pairKey = Object.keys(parsed).find(key => key.includes(pairAddress.toLowerCase()));
+                    if (pairKey) {
+                        log(`✅ 找到交易对数据: ${pairKey}`);
+                    } else {
+                        log('⚠️ 未找到交易对数据');
+                    }
+                } else {
+                    log('未找到 Multicall Redux 状态');
+                }
+            } catch (error) {
+                log(`❌ 错误: ${error.message}`);
+            }
+        }
+
+        function injectDebugCode() {
+            log('\n=== 注入调试代码 ===');
+            log('请在 Swap 页面打开控制台，然后运行以下代码：\n');
+            
+            const debugCode = `
+// 在 Swap 页面控制台运行此代码
+(function() {
+    console.log('🔍 检查 Swap 状态...');
+    
+    // 检查 Multicall 数据
+    const pairAddress = '0x28fb030cabb1ee0ca181f23f7004a38d301570bf';
+    const multicallData = localStorage.getItem('redux_localstorage_simple_multicall');
+    
+    if (multicallData) {
+        const parsed = JSON.parse(multicallData);
+        const pairKey = Object.keys(parsed).find(key => 
+            key.includes(pairAddress.toLowerCase())
+        );
+        
+        if (pairKey) {
+            console.log('✅ 找到交易对 Multicall 数据:', pairKey);
+            console.log('数据:', parsed[pairKey]);
+        } else {
+            console.log('⚠️ 未找到交易对 Multicall 数据');
+            console.log('可用的键:', Object.keys(parsed).slice(0, 10));
+        }
+    } else {
+        console.log('⚠️ 未找到 Multicall Redux 状态');
+    }
+    
+    // 尝试触发状态更新
+    console.log('\\n尝试触发状态更新...');
+    const swapInput = document.querySelector('#swap-currency-input input');
+    const swapOutput = document.querySelector('#swap-currency-output input');
+    
+    if (swapInput) {
+        console.log('找到输入框，尝试触发输入事件...');
+        swapInput.dispatchEvent(new Event('input', { bubbles: true }));
+        swapInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    console.log('\\n建议操作：');
+    console.log('1. 在 Swap 页面切换代币（先选其他，再选回 NBC/ETH）');
+    console.log('2. 等待 5-10 秒');
+    console.log('3. 如果仍不行，硬刷新页面 (Ctrl+Shift+R)');
+})();
+`;
+            
+            log(debugCode);
+            log('\n请复制上面的代码到 Swap 页面的控制台运行');
+        }
+
+        // 页面加载时显示说明
+        window.onload = function() {
+            log('=== 使用说明 ===');
+            log('1. 点击"清除缓存"清除 Multicall 缓存');
+            log('2. 点击"刷新页面"重新加载');
+            log('3. 如果问题仍然存在，点击"注入调试代码"获取更多信息');
+            log('\n注意：此工具需要在 Swap 页面使用才能生效');
+        };
+    </script>
+</body>
+</html>

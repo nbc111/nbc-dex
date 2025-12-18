@@ -142,6 +142,64 @@ export default function Swap() {
       : parsedAmounts[dependentField]?.toSignificant(6) ?? ''
   }
 
+  // Debug logging for swap calculation, especially for BNB/ETH pairs
+  useEffect(() => {
+    if (typedValue && currencies[Field.INPUT] && currencies[Field.OUTPUT] && !showWrap) {
+      const inputSymbol = currencies[Field.INPUT]?.symbol
+      const outputSymbol = currencies[Field.OUTPUT]?.symbol
+      const isBNBOrETH = inputSymbol === 'BNB' || outputSymbol === 'BNB' || inputSymbol === 'ETH' || outputSymbol === 'ETH'
+      
+      if (isBNBOrETH) {
+        console.log('=== 🔍 BNB/ETH Swap Debug ===')
+      } else {
+        console.log('=== Swap Debug ===')
+      }
+      
+      console.log('Input Currency:', inputSymbol, currencies[Field.INPUT] instanceof Token ? currencies[Field.INPUT].address : 'NBC')
+      console.log('Output Currency:', outputSymbol, currencies[Field.OUTPUT] instanceof Token ? currencies[Field.OUTPUT].address : 'NBC')
+      console.log('Typed Value:', typedValue)
+      console.log('Parsed Amount:', parsedAmount?.toSignificant(6))
+      
+      if (isBNBOrETH) {
+        console.log('--- Trade Calculation Status ---')
+      }
+      
+      console.log('V2 Trade:', v2Trade ? {
+        inputAmount: v2Trade.inputAmount.toSignificant(6),
+        outputAmount: v2Trade.outputAmount.toSignificant(6),
+        route: v2Trade.route.path.map(t => t.symbol).join(' -> ')
+      } : 'null')
+      
+      if (isBNBOrETH && !v2Trade) {
+        console.error('❌ CRITICAL: No V2 trade found for BNB/ETH!')
+        console.error('   This means:')
+        console.error('   1. No valid pairs were found (check pair existence)')
+        console.error('   2. Multicall failed to fetch reserves')
+        console.error('   3. Reserves are zero (no liquidity)')
+        console.error('   Check the console above for pair address calculation and Multicall errors')
+      }
+      
+      console.log('Trade:', trade ? {
+        inputAmount: trade.inputAmount.toSignificant(6),
+        outputAmount: trade.outputAmount.toSignificant(6)
+      } : 'null')
+      
+      console.log('Parsed Amounts:', {
+        INPUT: parsedAmounts[Field.INPUT]?.toSignificant(6),
+        OUTPUT: parsedAmounts[Field.OUTPUT]?.toSignificant(6)
+      })
+      console.log('Formatted Amounts:', formattedAmounts)
+      console.log('Independent Field:', independentField === Field.INPUT ? 'INPUT' : 'OUTPUT')
+      console.log('Dependent Field:', dependentField === Field.INPUT ? 'INPUT' : 'OUTPUT')
+      
+      if (isBNBOrETH && !trade && parsedAmount) {
+        console.error('❌ Output amount not calculated!')
+        console.error('   Expected output amount should appear in "Formatted Amounts" OUTPUT field')
+        console.error('   But it is empty because no trade was found')
+      }
+    }
+  }, [typedValue, currencies, v2Trade, trade, parsedAmounts, parsedAmount, showWrap, independentField, dependentField, formattedAmounts])
+
   const route = trade?.route
   const userHasSpecifiedInputOutput = Boolean(
     currencies[Field.INPUT] && currencies[Field.OUTPUT] && parsedAmounts[independentField]?.greaterThan(JSBI.BigInt(0))

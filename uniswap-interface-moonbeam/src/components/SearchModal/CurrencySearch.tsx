@@ -1,4 +1,4 @@
-import { Currency, DEV, Token } from 'moonbeamswap'
+import { Currency, currencyEquals, DEV, Token, WDEV } from 'moonbeamswap'
 import React, { KeyboardEvent, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import ReactGA from 'react-ga'
 import { useTranslation } from 'react-i18next'
@@ -75,9 +75,16 @@ export function CurrencySearch({
   const tokenComparator = useTokenComparator(invertSearchOrder)
 
   const filteredTokens: Token[] = useMemo(() => {
-    if (isAddressSearch) return searchToken ? [searchToken] : []
-    return filterTokens(Object.values(allTokens), searchQuery)
-  }, [isAddressSearch, searchToken, allTokens, searchQuery])
+    if (isAddressSearch) {
+      // If searching by address, allow WDEV to be found (for advanced users)
+      return searchToken ? [searchToken] : []
+    }
+    // Filter out WDEV from the token list - users should use NBC (native currency) instead
+    const tokensWithoutWDEV = Object.values(allTokens).filter(
+      token => !(chainId && currencyEquals(token, WDEV[chainId]))
+    )
+    return filterTokens(tokensWithoutWDEV, searchQuery)
+  }, [isAddressSearch, searchToken, allTokens, searchQuery, chainId])
 
   const filteredSortedTokens: Token[] = useMemo(() => {
     if (searchToken) return [searchToken]

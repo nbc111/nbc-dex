@@ -29,14 +29,21 @@ function useAllCommonPairs(currencyA?: Currency, currencyB?: Currency): Pair[] {
     () =>
       tokenA && tokenB
         ? [
-            // the direct pair
+            // Prioritize direct pair first (most important)
             [tokenA, tokenB],
-            // token A against all bases
-            ...bases.map((base): [Token, Token] => [tokenA, base]),
-            // token B against all bases
-            ...bases.map((base): [Token, Token] => [tokenB, base]),
-            // each base against all bases
-            ...basePairs
+            // For NBC chain, limit base pairs to reduce multicall failures
+            // Only check token A against most common bases (WDEV, BTC, ETH, USDT)
+            ...(chainId === 1281 
+              ? bases.slice(0, 4).map((base): [Token, Token] => [tokenA, base])
+              : bases.map((base): [Token, Token] => [tokenA, base])
+            ),
+            // Only check token B against most common bases
+            ...(chainId === 1281
+              ? bases.slice(0, 4).map((base): [Token, Token] => [tokenB, base])
+              : bases.map((base): [Token, Token] => [tokenB, base])
+            ),
+            // Skip basePairs for NBC chain to reduce multicall calls
+            ...(chainId === 1281 ? [] : basePairs)
           ]
             .filter((tokens): tokens is [Token, Token] => Boolean(tokens[0] && tokens[1]))
             .filter(([t0, t1]) => t0.address !== t1.address)
@@ -84,10 +91,55 @@ function useAllCommonPairs(currencyA?: Currency, currencyB?: Currency): Pair[] {
 export function useTradeExactIn(currencyAmountIn?: CurrencyAmount, currencyOut?: Currency): Trade | null {
   const allowedPairs = useAllCommonPairs(currencyAmountIn?.currency, currencyOut)
   return useMemo(() => {
-    if (currencyAmountIn && currencyOut && allowedPairs.length > 0) {
-      return (
-        Trade.bestTradeExactIn(allowedPairs, currencyAmountIn, currencyOut, { maxHops: 2, maxNumResults: 1 })[0] ?? null
-      )
+    if (currencyAmountIn && currencyOut) {
+      // Enhanced debug logging, especially for BNB/ETH pairs
+      if (currencyAmountIn.currency instanceof Token && currencyOut instanceof Token) {
+        const isBNBOrETH = currencyAmountIn.currency.symbol === 'BNB' || currencyOut.symbol === 'BNB' || 
+                           currencyAmountIn.currency.symbol === 'ETH' || currencyOut.symbol === 'ETH'
+        console.log('=== useTradeExactIn Debug ===')
+        console.log('Input Token:', currencyAmountIn.currency.symbol, currencyAmountIn.currency.address)
+        console.log('Output Token:', currencyOut.symbol, currencyOut.address)
+        console.log('Input Amount:', currencyAmountIn.toSignificant(6), currencyAmountIn.currency.symbol)
+        console.log('Allowed Pairs Count:', allowedPairs.length)
+        if (allowedPairs.length > 0) {
+          console.log('Allowed Pairs:', allowedPairs.map(p => ({
+            token0: p.token0.symbol,
+            token1: p.token1.symbol,
+            reserve0: p.reserve0.toSignificant(6),
+            reserve1: p.reserve1.toSignificant(6),
+            pairAddress: p.liquidityToken.address
+          })))
+          if (isBNBOrETH) {
+            console.log(`✅ Found ${allowedPairs.length} valid pair(s) for ${currencyAmountIn.currency.symbol}/${currencyOut.symbol}`)
+          }
+        } else {
+          console.warn('⚠️ No pairs found! This could mean:')
+          console.warn('  1. Pair does not exist on chain')
+          console.warn('  2. Multicall failed to fetch reserves')
+          console.warn('  3. Reserves are zero')
+          if (isBNBOrETH) {
+            console.error(`❌ CRITICAL: No pairs found for ${currencyAmountIn.currency.symbol}/${currencyOut.symbol}`)
+            console.error(`   This means the swap cannot be calculated!`)
+            console.error(`   Check the console for pair address calculation and Multicall errors above`)
+            console.error(`   Verify the pair exists: Factory.getPair(${currencyAmountIn.currency.address}, ${currencyOut.address})`)
+          }
+        }
+      }
+      
+      if (allowedPairs.length > 0) {
+        const trades = Trade.bestTradeExactIn(allowedPairs, currencyAmountIn, currencyOut, { maxHops: 2, maxNumResults: 1 })
+        const bestTrade = trades[0] ?? null
+        if (bestTrade) {
+          console.log('✅ Best Trade Found:', {
+            inputAmount: bestTrade.inputAmount.toSignificant(6),
+            outputAmount: bestTrade.outputAmount.toSignificant(6),
+            route: bestTrade.route.path.map(t => t.symbol).join(' -> ')
+          })
+        } else {
+          console.warn('⚠️ No valid trade found from pairs')
+        }
+        return bestTrade
+      }
     }
     return null
   }, [allowedPairs, currencyAmountIn, currencyOut])
