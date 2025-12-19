@@ -98,6 +98,13 @@ function useCallsData(calls: (Call | undefined)[], options?: ListenerOptions): C
         let data
         if (result?.data && result?.data !== '0x') {
           data = result.data
+        } else if (result?.data === '0x') {
+          // Log when we get empty data from Multicall
+          console.warn('⚠️ Multicall returned empty data (0x)', {
+            address: call.address,
+            callData: call.callData.substring(0, 10) + '...',
+            blockNumber: result?.blockNumber
+          })
         }
 
         return { valid: true, data, blockNumber: result?.blockNumber }
@@ -138,8 +145,19 @@ function toCallState(
   if (success && data) {
     try {
       result = contractInterface.decodeFunctionResult(fragment, data)
-    } catch (error) {
-      console.debug('Result data parsing failed', fragment, data)
+    } catch (error: any) {
+      // Enhanced error logging for debugging
+      console.error('❌ Result data parsing failed', {
+        fragment: fragment?.name,
+        dataLength: data?.length,
+        dataPreview: data?.substring(0, 66), // First 32 bytes
+        error: error.message,
+        fullData: data
+      })
+      console.error('   This usually means:')
+      console.error('   1. Contract call returned invalid data (contract may not exist)')
+      console.error('   2. Function signature mismatch')
+      console.error('   3. Return data format is incorrect')
       return {
         valid: true,
         loading: false,
@@ -147,6 +165,16 @@ function toCallState(
         syncing,
         result
       }
+    }
+  } else {
+    // Log when data is empty or too short
+    if (fragment?.name === 'getReserves') {
+      console.warn('⚠️ getReserves returned empty data', {
+        data: data || 'undefined',
+        dataLength: data?.length || 0,
+        blockNumber
+      })
+      console.warn('   This usually means the pair contract does not exist at this address')
     }
   }
   return {

@@ -1,21 +1,25 @@
 @echo off
 echo ========================================
-echo 正在启动开发服务器...
+echo Starting development server with full output
 echo ========================================
 cd /d "%~dp0"
 set NODE_OPTIONS=--openssl-legacy-provider
 set PORT=3001
 set HOST=localhost
 set DISABLE_ESLINT_PLUGIN=true
-echo 环境变量已设置:
+set CI=true
+echo Environment variables:
 echo   NODE_OPTIONS=%NODE_OPTIONS%
 echo   PORT=%PORT%
 echo   HOST=%HOST%
 echo   DISABLE_ESLINT_PLUGIN=%DISABLE_ESLINT_PLUGIN%
+echo   CI=%CI%
 echo.
-echo 正在启动服务...
-echo 请等待编译完成（可能需要1-2分钟）...
-echo 服务将在 http://localhost:3001 启动
+echo Starting npm start...
+echo Please wait for compilation (this may take 2-3 minutes)...
+echo Look for "Compiled successfully!" message.
+echo.
+echo If you see "Failed to compile", please copy the error message.
 echo.
 npm start
 

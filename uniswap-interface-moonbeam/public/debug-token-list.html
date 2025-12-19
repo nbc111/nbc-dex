@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代币列表调试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 { color: #58a6ff; }
+        h2 { color: #79c0ff; margin-top: 30px; }
+        .info {
+            background: #161b22;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 1px solid #30363d;
+        }
+        .success { color: #3fb950; }
+        .error { color: #f85149; }
+        .warning { color: #d29922; }
+        pre {
+            background: #0d1117;
+            padding: 15px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #2ea043; }
+        button.danger {
+            background: #da3633;
+        }
+        button.danger:hover { background: #f85149; }
+        .token-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: #161b22;
+            border-radius: 4px;
+            border-left: 3px solid #238636;
+        }
+        .token-item.missing {
+            border-left-color: #f85149;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 代币列表调试工具</h1>
+    
+    <div class="info">
+        <p>此工具用于诊断为什么代币选择弹窗中只显示部分代币。</p>
+        <p><strong>使用方法：</strong>在 DEX 页面（http://localhost:3001）打开此页面，然后运行下面的检查。</p>
+    </div>
+
+    <h2>操作</h2>
+    <button onclick="checkLocalStorage()">检查 localStorage</button>
+    <button onclick="checkReduxStore()">检查 Redux Store</button>
+    <button onclick="checkTokenListFile()">检查 tokens.json 文件</button>
+    <button class="danger" onclick="clearCache()">清除所有缓存</button>
+    <button onclick="forceRefresh()">强制刷新代币列表</button>
+
+    <div id="results"></div>
+
+    <h2>说明</h2>
+    <div class="info">
+        <p><strong>检查 localStorage：</strong>查看浏览器本地存储中的代币列表数据</p>
+        <p><strong>检查 Redux Store：</strong>查看当前 Redux store 中的代币列表状态（需要 Redux DevTools）</p>
+        <p><strong>检查 tokens.json 文件：</strong>验证源文件中的代币数据</p>
+        <p><strong>清除所有缓存：</strong>清除 localStorage 中的所有数据</p>
+        <p><strong>强制刷新代币列表：</strong>清除缓存并重新加载页面</p>
+    </div>
+
+    <h2>预期结果</h2>
+    <div class="info">
+        <p>tokens.json 中应该有 <strong>12 个代币</strong>（chainId 1281）：</p>
+        <ul id="expected-tokens"></ul>
+    </div>
+
+    <script>
+        const expectedTokens = [
+            { symbol: 'BTC', name: 'Wrapped Bitcoin', address: '0x5EaA2c6ae3bFf47D2188B64F743Ec777733a80ac' },
+            { symbol: 'ETH', name: 'Wrapped Ethereum', address: '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3' },
+            { symbol: 'SOL', name: 'Wrapped Solana', address: '0xd5eeccc885ef850d90ae40e716c3dfce5c3d4c81' },
+            { symbol: 'BNB', name: 'Wrapped BNB', address: '0x9c43237490272bfdd2f1d1ca0b34f20b1a3c9f5c' },
+            { symbol: 'XRP', name: 'Wrapped XRP', address: '0x48e1772534fabbdcade9ca4005e5ee8bf4190093' },
+            { symbol: 'LTC', name: 'Wrapped Litecoin', address: '0x8d22041c22d696fdff0703852a706a40ff65a7de' },
+            { symbol: 'DOGE', name: 'Wrapped Dogecoin', address: '0x8ceb9a93405cddf3d76f72327f868bd3e8755d89' },
+            { symbol: 'PEPE', name: 'Pepe Token', address: '0xd365877026A43107Efd9825bc3ABFe1d7A450F82' },
+            { symbol: 'USDT', name: 'Tether USD', address: '0xfd1508502696d0e1910ed850c6236d965cc4db11' },
+            { symbol: 'SUI', name: 'Sui Token', address: '0x9011191e84ad832100ddc891e360f8402457f55e' }
+        ];
+
+        // 显示预期代币列表
+        const expectedList = document.getElementById('expected-tokens');
+        expectedTokens.forEach(token => {
+            const li = document.createElement('li');
+            li.innerHTML = `<code>${token.symbol}</code> - ${token.name}`;
+            expectedList.appendChild(li);
+        });
+
+        function showResult(title, content, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            resultsDiv.innerHTML = `<h2>${title}</h2><div class="${className}">${content}</div>`;
+        }
+
+        function checkLocalStorage() {
+            try {
+                const keys = Object.keys(localStorage);
+                const reduxKeys = keys.filter(k => k.includes('redux') || k.includes('persist') || k.includes('lists'));
+                
+                let html = '<h3>LocalStorage 中的 Redux 相关键：</h3><ul>';
+                reduxKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    const size = new Blob([value]).size;
+                    html += `<li><code>${key}</code> (${(size / 1024).toFixed(2)} KB)</li>`;
+                });
+                html += '</ul>';
+
+                // 尝试解析 lists 数据
+                reduxKeys.forEach(key => {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        if (data.lists && data.lists.byUrl) {
+                            html += '<h3>代币列表详情：</h3>';
+                            Object.keys(data.lists.byUrl).forEach(url => {
+                                const list = data.lists.byUrl[url];
+                                if (list && list.current && list.current.tokens) {
+                                    const tokens = list.current.tokens;
+                                    const chain1281Tokens = tokens.filter(t => t.chainId === 1281);
+                                    html += `<div class="token-item"><strong>列表: ${url}</strong><br>`;
+                                    html += `版本: ${list.current.version.major}.${list.current.version.minor}.${list.current.version.patch}<br>`;
+                                    html += `总代币数: ${tokens.length}<br>`;
+                                    html += `ChainId 1281 代币数: ${chain1281Tokens.length}</div>`;
+                                    
+                                    if (chain1281Tokens.length > 0) {
+                                        html += '<h4>ChainId 1281 的代币：</h4><ul>';
+                                        chain1281Tokens.forEach(token => {
+                                            html += `<li><code>${token.symbol}</code> - ${token.name} (${token.address})</li>`;
+                                        });
+                                        html += '</ul>';
+                                    }
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        // 忽略解析错误
+                    }
+                });
+
+                showResult('LocalStorage 检查结果', html);
+            } catch (error) {
+                showResult('检查失败', `错误: ${error.message}`, 'error');
+            }
+        }
+
+        function checkReduxStore() {
+            try {
+                // 尝试从 window 获取 Redux store
+                if (window.__REDUX_DEVTOOLS_EXTENSION__) {
+                    showResult('Redux Store 检查', '请使用 Redux DevTools 浏览器扩展来检查 store 状态。', 'info');
+                } else {
+                    showResult('Redux Store 检查', '未检测到 Redux DevTools。请安装 Redux DevTools 扩展。', 'warning');
+                }
+            } catch (error) {
+                showResult('检查失败', `错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkTokenListFile() {
+            try {
+                const response = await fetch('/tokens.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                const chain1281Tokens = data.tokens.filter(t => t.chainId === 1281);
+                
+                let html = `<h3>tokens.json 文件内容：</h3>`;
+                html += `<p>文件版本: ${data.version.major}.${data.version.minor}.${data.version.patch}</p>`;
+                html += `<p>总代币数: ${data.tokens.length}</p>`;
+                html += `<p><strong>ChainId 1281 代币数: ${chain1281Tokens.length}</strong></p>`;
+                
+                if (chain1281Tokens.length > 0) {
+                    html += '<h4>ChainId 1281 的代币列表：</h4><ul>';
+                    chain1281Tokens.forEach(token => {
+                        const isExpected = expectedTokens.some(t => t.address.toLowerCase() === token.address.toLowerCase());
+                        const className = isExpected ? 'token-item' : 'token-item missing';
+                        html += `<li class="${className}"><code>${token.symbol}</code> - ${token.name}<br>地址: ${token.address}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                if (chain1281Tokens.length !== expectedTokens.length) {
+                    html += `<div class="error"><strong>警告：</strong>文件中的代币数量 (${chain1281Tokens.length}) 与预期 (${expectedTokens.length}) 不匹配！</div>`;
+                }
+
+                showResult('tokens.json 文件检查', html, chain1281Tokens.length === expectedTokens.length ? 'success' : 'error');
+            } catch (error) {
+                showResult('检查失败', `无法读取 tokens.json: ${error.message}`, 'error');
+            }
+        }
+
+        function clearCache() {
+            if (confirm('确定要清除所有 localStorage 数据吗？这将清除所有本地存储，包括用户设置和交易历史。')) {
+                try {
+                    localStorage.clear();
+                    showResult('清除成功', '已清除所有 localStorage 数据。请刷新 DEX 页面查看效果。', 'success');
+                } catch (error) {
+                    showResult('清除失败', `错误: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function forceRefresh() {
+            if (confirm('确定要清除缓存并刷新页面吗？')) {
+                try {
+                    // 清除所有 Redux 相关的缓存
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.includes('redux') || key.includes('persist') || key.includes('lists')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                    showResult('刷新中', '已清除缓存，正在刷新页面...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'http://localhost:3001';
+                    }, 1000);
+                } catch (error) {
+                    showResult('操作失败', `错误: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            checkTokenListFile();
+        };
+    </script>
+</body>
+</html>
+

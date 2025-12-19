@@ -59,8 +59,8 @@ export default function CommonBases({
         </BaseWrapper>
         {(chainId ? SUGGESTED_BASES[chainId] : []).map((token: Token) => {
           const selected = selectedCurrency instanceof Token && selectedCurrency.address === token.address
-          // Display WNBC for WDEV on NBC Chain (1281), otherwise use token.symbol
-          const displaySymbol = (chainId === ChainId.STANDALONE && token.symbol === 'WDEV') ? 'WNBC' : token.symbol
+          // Use token.symbol as-is
+          const displaySymbol = token.symbol
           return (
             <BaseWrapper onClick={() => !selected && onSelect(token)} disable={selected} key={token.address}>
               <CurrencyLogo currency={token} style={{ marginRight: 8 }} />

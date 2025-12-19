@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>简单验证交易对地址</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { background: #252526; padding: 15px; border-radius: 5px; white-space: pre-wrap; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        button { background: #0e639c; color: white; border: none; padding: 10px 20px; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #1177bb; }
+    </style>
+</head>
+<body>
+    <h1>验证交易对地址（无需 ethers.js）</h1>
+    <button onclick="verify()">验证</button>
+    <pre id="output"></pre>
+
+    <script>
+        async function verify() {
+            const output = document.getElementById('output');
+            output.textContent = '验证中...\n\n';
+
+            const CONFIG = {
+                factory: '0xf0616CCDa274b6DbFa645d70f8Dc0f617707E793',
+                wdev: '0xFA3956c0620488E2ccdfc48BB02baeB8BDa286fC',
+                eth: '0x934EbeB6D7D3821B604A5D10F80619d5bcBe49C3',
+                initCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f',
+                actualPair: '0x28fb030cabb1ee0ca181f23f7004a38d301570bf'
+            };
+
+            try {
+                // 1. 从 Factory 获取实际地址
+                const factoryABI = ['function getPair(address tokenA, address tokenB) external view returns (address pair)'];
+                const getPairData = '0xe6a43905' + 
+                    CONFIG.wdev.slice(2).padStart(64, '0') +
+                    CONFIG.eth.slice(2).padStart(64, '0');
+                
+                const pairResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: CONFIG.factory, data: getPairData }, 'latest']
+                });
+                
+                const actualAddress = '0x' + pairResult.slice(-40);
+                output.textContent += `实际交易对地址: ${actualAddress}\n\n`;
+
+                // 2. 验证地址是否匹配
+                if (actualAddress.toLowerCase() === CONFIG.actualPair.toLowerCase()) {
+                    output.textContent += '<span class="success">✅ 地址匹配预期值</span>\n\n';
+                } else {
+                    output.textContent += '<span class="error">⚠️ 地址与预期值不同</span>\n';
+                    output.textContent += `预期: ${CONFIG.actualPair}\n`;
+                    output.textContent += `实际: ${actualAddress}\n\n`;
+                }
+
+                // 3. 检查 Pair 合约信息
+                output.textContent += '=== Pair 合约信息 ===\n';
+                const pairABI = [
+                    'function token0() external view returns (address)',
+                    'function token1() external view returns (address)',
+                    'function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)'
+                ];
+                
+                // 获取 token0
+                const token0Data = '0x0dfe1681';
+                const token0Result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: actualAddress, data: token0Data }, 'latest']
+                });
+                const pairToken0 = '0x' + token0Result.slice(-40);
+                
+                // 获取 token1
+                const token1Data = '0xd21220a7';
+                const token1Result = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: actualAddress, data: token1Data }, 'latest']
+                });
+                const pairToken1 = '0x' + token1Result.slice(-40);
+                
+                output.textContent += `Pair Token0: ${pairToken0}\n`;
+                output.textContent += `Pair Token1: ${pairToken1}\n`;
+                output.textContent += `WDEV 地址: ${CONFIG.wdev}\n`;
+                output.textContent += `ETH 地址: ${CONFIG.eth}\n\n`;
+
+                // 4. 验证 token 顺序
+                const wdevLower = CONFIG.wdev.toLowerCase();
+                const ethLower = CONFIG.eth.toLowerCase();
+                const expectedToken0 = wdevLower < ethLower ? CONFIG.wdev : CONFIG.eth;
+                const expectedToken1 = wdevLower < ethLower ? CONFIG.eth : CONFIG.wdev;
+                
+                output.textContent += '=== Token 顺序验证 ===\n';
+                output.textContent += `预期 Token0: ${expectedToken0}\n`;
+                output.textContent += `实际 Token0: ${pairToken0}\n`;
+                output.textContent += `匹配: ${pairToken0.toLowerCase() === expectedToken0.toLowerCase() ? '✅' : '❌'}\n\n`;
+
+                // 5. 获取 Reserves
+                const getReservesData = '0x0902f1ac';
+                const reservesResult = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{ to: actualAddress, data: getReservesData }, 'latest']
+                });
+                
+                const reserve0 = BigInt('0x' + reservesResult.slice(2, 66));
+                const reserve1 = BigInt('0x' + reservesResult.slice(66, 130));
+                
+                output.textContent += '=== Reserves ===\n';
+                output.textContent += `Reserve0: ${Number(reserve0) / 1e18}\n`;
+                output.textContent += `Reserve1: ${Number(reserve1) / 1e18}\n\n`;
+
+                // 6. 总结
+                output.textContent += '=== 总结 ===\n';
+                const addressMatch = actualAddress.toLowerCase() === CONFIG.actualPair.toLowerCase();
+                const tokenOrderMatch = pairToken0.toLowerCase() === expectedToken0.toLowerCase();
+                const hasReserves = reserve0 > 0n && reserve1 > 0n;
+                
+                if (addressMatch && tokenOrderMatch && hasReserves) {
+                    output.textContent += '<span class="success">✅ 所有检查通过！</span>\n';
+                    output.textContent += '\n如果 Swap 页面仍无法计算，可能是：\n';
+                    output.textContent += '1. React 状态未更新 - 尝试硬刷新 (Ctrl+Shift+R)\n';
+                    output.textContent += '2. Multicall 数据未同步 - 等待 5-10 秒\n';
+                    output.textContent += '3. 浏览器缓存问题 - 清除缓存后重试\n';
+                } else {
+                    output.textContent += '<span class="error">❌ 发现问题：</span>\n';
+                    if (!addressMatch) output.textContent += '- 地址不匹配\n';
+                    if (!tokenOrderMatch) output.textContent += '- Token 顺序不匹配\n';
+                    if (!hasReserves) output.textContent += '- Reserves 为 0\n';
+                }
+
+            } catch (error) {
+                output.textContent += `\n❌ 错误: ${error.message}\n`;
+                console.error(error);
+            }
+        }
+
+        // 自动运行
+        window.onload = function() {
+            if (typeof window.ethereum !== 'undefined') {
+                verify();
+            } else {
+                document.getElementById('output').textContent = '❌ 请先连接 MetaMask 钱包';
+            }
+        };
+    </script>
+</body>
+</html>

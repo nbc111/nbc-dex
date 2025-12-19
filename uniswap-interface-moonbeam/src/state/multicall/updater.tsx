@@ -17,7 +17,9 @@ import {
 } from './actions'
 
 // chunk calls so we do not exceed the gas limit
-const CALL_CHUNK_SIZE = 500
+// Reduced for NBC chain to avoid multicall failures
+// Further reduced because Multicall uses require(success) which fails if any call fails
+const CALL_CHUNK_SIZE = 10
 
 /**
  * Fetches a chunk of calls, enforcing a minimum block number constraint
@@ -33,9 +35,86 @@ async function fetchChunk(
   console.debug('Fetching chunk', multicallContract, chunk, minBlockNumber)
   let resultsBlockNumber, returnData
   try {
-    ;[resultsBlockNumber, returnData] = await multicallContract.aggregate(chunk.map(obj => [obj.address, obj.callData]))
-  } catch (error) {
-    console.debug('Failed to fetch chunk inside retry', error)
+    const calls = chunk.map(obj => [obj.address, obj.callData])
+    console.log(`📞 Multicall: Calling ${calls.length} contracts`)
+    console.log(`   Multicall Address: ${multicallContract.address}`)
+    console.log(`   Calls:`, calls.map(([addr, data]) => `${addr.substring(0, 10)}... (${data.substring(0, 10)}...)`))
+    ;[resultsBlockNumber, returnData] = await multicallContract.aggregate(calls)
+    console.log(`✅ Multicall: Success! Block: ${resultsBlockNumber.toString()}, Results: ${returnData.length}`)
+    
+    // Log detailed results for debugging, especially for pair contracts
+    returnData.forEach((data: string, index: number) => {
+      const call = chunk[index]
+      const isGetReserves = call.callData.startsWith('0x0902f1ac') // getReserves() function selector
+      
+      if (!data || data === '0x' || data.length <= 2) {
+        console.warn(`⚠️ Multicall result ${index}: Empty or invalid data`, {
+          address: call.address,
+          callData: call.callData.substring(0, 10) + '...',
+          function: isGetReserves ? 'getReserves()' : 'unknown',
+          data: data || 'undefined',
+          dataLength: data?.length || 0
+        })
+        if (isGetReserves) {
+          console.warn(`   This is a getReserves() call - the pair contract may not exist at ${call.address}`)
+          console.warn(`   Or the pair exists but is not initialized (no liquidity added yet)`)
+          console.warn(`   Or Multicall contract has an issue calling this pair contract`)
+          console.warn(`   🔍 Next step: Check if pair exists on-chain using Factory.getPair()`)
+          console.warn(`   🔍 If pair exists, try calling getReserves() directly (bypass Multicall)`)
+        }
+      } else {
+        if (isGetReserves) {
+          // Try to decode getReserves result for better debugging
+          try {
+            // getReserves returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)
+            // Each uint112 is 32 bytes (padded), so we have 96 bytes total
+            if (data.length >= 194) { // 0x + 96 bytes = 194 chars
+              const reserve0Hex = '0x' + data.slice(34, 66)
+              const reserve1Hex = '0x' + data.slice(66, 98)
+              const reserve0 = BigInt(reserve0Hex)
+              const reserve1 = BigInt(reserve1Hex)
+              console.log(`✅ Multicall result ${index}: getReserves() - Valid reserves`, {
+                pairAddress: call.address,
+                reserve0: reserve0.toString(),
+                reserve1: reserve1.toString(),
+                hasLiquidity: reserve0 > BigInt(0) && reserve1 > BigInt(0)
+              })
+            } else {
+              console.log(`✅ Multicall result ${index}: Valid data (getReserves)`, {
+                address: call.address,
+                dataLength: data.length,
+                dataPreview: data.substring(0, 66)
+              })
+            }
+          } catch (e) {
+            console.log(`✅ Multicall result ${index}: Valid data (getReserves)`, {
+              address: call.address,
+              dataLength: data.length,
+              dataPreview: data.substring(0, 66)
+            })
+          }
+        } else {
+          console.log(`✅ Multicall result ${index}: Valid data`, {
+            address: call.address,
+            dataLength: data.length,
+            dataPreview: data.substring(0, 66) // First 32 bytes
+          })
+        }
+      }
+    })
+  } catch (error: any) {
+    console.error(`❌ Multicall: Failed to fetch chunk`, {
+      multicallAddress: multicallContract.address,
+      chunkSize: chunk.length,
+      error: error.message,
+      errorCode: error.code,
+      errorData: error.data
+    })
+    console.error(`   This usually means:`)
+    console.error(`   1. Multicall contract has an issue (check deployment)`)
+    console.error(`   2. One or more contracts in the chunk don't exist or reverted`)
+    console.error(`   3. RPC node issue`)
+    console.error(`   First call in chunk:`, chunk[0] ? `${chunk[0].address} (${chunk[0].callData.substring(0, 20)}...)` : 'N/A')
     throw error
   }
   if (resultsBlockNumber.toNumber() < minBlockNumber) {
@@ -185,7 +264,19 @@ export default function Updater(): null {
               console.debug('Cancelled fetch for blockNumber', latestBlockNumber)
               return
             }
-            console.error('Failed to fetch multicall chunk', chunk, chainId, error)
+            console.error('❌ Failed to fetch multicall chunk', {
+              chunkIndex: index,
+              chunkSize: chunk.length,
+              chainId,
+              blockNumber: latestBlockNumber,
+              error: error.message,
+              errorCode: error.code,
+              errorData: error.data
+            })
+            console.error('   First call in failed chunk:', chunk[0] ? {
+              address: chunk[0].address,
+              callData: chunk[0].callData.substring(0, 20) + '...'
+            } : 'N/A')
             dispatch(
               errorFetchingMulticallResults({
                 calls: chunk,
