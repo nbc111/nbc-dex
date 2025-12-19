@@ -26,7 +26,7 @@ module.exports = {
       chainId: 1281,
     },
     nbc: {
-      url: 'http://183.192.65.101:9933',
+      url: 'http://206.238.196.207:9944',
       accounts: ['0x426231b32113022e22bfc31dc90c15561b6b32ae2dc1d8f0bfaf39c638664a8f'],
       chainId: 1281,
       gasPrice: 1000000000,
