@@ -1,10 +1,12 @@
-import { Trade, TradeType } from 'moonbeamswap'
+import { Trade, TradeType, DEV } from 'moonbeamswap'
 import React, { useContext } from 'react'
 import { ThemeContext } from 'styled-components'
+import { useActiveWeb3React } from '../../hooks'
 import { Field } from '../../state/swap/actions'
 import { useUserSlippageTolerance } from '../../state/user/hooks'
 import { TYPE } from '../../theme'
 import { computeSlippageAdjustedAmounts, computeTradePriceBreakdown } from '../../utils/prices'
+import { getNativeCurrencySymbol } from '../../utils'
 import { AutoColumn } from '../Column'
 import QuestionHelper from '../QuestionHelper'
 import { RowBetween, RowFixed } from '../Row'
@@ -14,9 +16,18 @@ import SwapRoute from './SwapRoute'
 
 function TradeSummary({ trade, allowedSlippage }: { trade: Trade; allowedSlippage: number }) {
   const theme = useContext(ThemeContext)
+  const { chainId } = useActiveWeb3React()
   const { priceImpactWithoutFee, realizedLPFee } = computeTradePriceBreakdown(trade)
   const isExactIn = trade.tradeType === TradeType.EXACT_INPUT
   const slippageAdjustedAmounts = computeSlippageAdjustedAmounts(trade, allowedSlippage)
+  
+  // Get the correct symbol for display (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+  const getDisplaySymbol = (currency: typeof trade.inputAmount.currency): string => {
+    if (currency === DEV) {
+      return getNativeCurrencySymbol(chainId)
+    }
+    return currency.symbol || ''
+  }
 
   return (
     <>
@@ -31,9 +42,9 @@ function TradeSummary({ trade, allowedSlippage }: { trade: Trade; allowedSlippag
           <RowFixed>
             <TYPE.black color={theme.text1} fontSize={14}>
               {isExactIn
-                ? `${slippageAdjustedAmounts[Field.OUTPUT]?.toSignificant(4)} ${trade.outputAmount.currency.symbol}` ??
+                ? `${slippageAdjustedAmounts[Field.OUTPUT]?.toSignificant(4)} ${getDisplaySymbol(trade.outputAmount.currency)}` ??
                   '-'
-                : `${slippageAdjustedAmounts[Field.INPUT]?.toSignificant(4)} ${trade.inputAmount.currency.symbol}` ??
+                : `${slippageAdjustedAmounts[Field.INPUT]?.toSignificant(4)} ${getDisplaySymbol(trade.inputAmount.currency)}` ??
                   '-'}
             </TYPE.black>
           </RowFixed>
@@ -56,7 +67,7 @@ function TradeSummary({ trade, allowedSlippage }: { trade: Trade; allowedSlippag
             <QuestionHelper text="A portion of each trade (0.30%) goes to liquidity providers as a protocol incentive." />
           </RowFixed>
           <TYPE.black fontSize={14} color={theme.text1}>
-            {realizedLPFee ? `${realizedLPFee.toSignificant(4)} ${trade.inputAmount.currency.symbol}` : '-'}
+            {realizedLPFee ? `${realizedLPFee.toSignificant(4)} ${getDisplaySymbol(trade.inputAmount.currency)}` : '-'}
           </TYPE.black>
         </RowBetween>
       </AutoColumn>

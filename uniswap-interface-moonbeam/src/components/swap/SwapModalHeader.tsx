@@ -1,12 +1,13 @@
-import { Trade, TradeType } from 'moonbeamswap'
+import { Trade, TradeType, DEV } from 'moonbeamswap'
 import React, { useContext, useMemo } from 'react'
 import { ArrowDown, AlertTriangle } from 'react-feather'
 import { Text } from 'rebass'
 import { ThemeContext } from 'styled-components'
+import { useActiveWeb3React } from '../../hooks'
 import { Field } from '../../state/swap/actions'
 import { TYPE } from '../../theme'
 import { ButtonPrimary } from '../Button'
-import { isAddress, shortenAddress } from '../../utils'
+import { isAddress, shortenAddress, getNativeCurrencySymbol } from '../../utils'
 import { computeSlippageAdjustedAmounts, computeTradePriceBreakdown, warningSeverity } from '../../utils/prices'
 import { AutoColumn } from '../Column'
 import CurrencyLogo from '../CurrencyLogo'
@@ -26,6 +27,7 @@ export default function SwapModalHeader({
   showAcceptChanges: boolean
   onAcceptChanges: () => void
 }) {
+  const { chainId } = useActiveWeb3React()
   const slippageAdjustedAmounts = useMemo(() => computeSlippageAdjustedAmounts(trade, allowedSlippage), [
     trade,
     allowedSlippage
@@ -34,6 +36,14 @@ export default function SwapModalHeader({
   const priceImpactSeverity = warningSeverity(priceImpactWithoutFee)
 
   const theme = useContext(ThemeContext)
+  
+  // Get the correct symbol for display (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+  const getDisplaySymbol = (currency: typeof trade.inputAmount.currency): string => {
+    if (currency === DEV) {
+      return getNativeCurrencySymbol(chainId)
+    }
+    return currency.symbol || ''
+  }
 
   return (
     <AutoColumn gap={'md'} style={{ marginTop: '20px' }}>
@@ -50,7 +60,7 @@ export default function SwapModalHeader({
         </RowFixed>
         <RowFixed gap={'0px'}>
           <Text fontSize={24} fontWeight={500} style={{ marginLeft: '10px' }}>
-            {trade.inputAmount.currency.symbol}
+            {getDisplaySymbol(trade.inputAmount.currency)}
           </Text>
         </RowFixed>
       </RowBetween>
@@ -76,7 +86,7 @@ export default function SwapModalHeader({
         </RowFixed>
         <RowFixed gap={'0px'}>
           <Text fontSize={24} fontWeight={500} style={{ marginLeft: '10px' }}>
-            {trade.outputAmount.currency.symbol}
+            {getDisplaySymbol(trade.outputAmount.currency)}
           </Text>
         </RowFixed>
       </RowBetween>
@@ -101,7 +111,7 @@ export default function SwapModalHeader({
           <TYPE.italic textAlign="left" style={{ width: '100%' }}>
             {`Output is estimated. You will receive at least `}
             <b>
-              {slippageAdjustedAmounts[Field.OUTPUT]?.toSignificant(6)} {trade.outputAmount.currency.symbol}
+              {slippageAdjustedAmounts[Field.OUTPUT]?.toSignificant(6)} {getDisplaySymbol(trade.outputAmount.currency)}
             </b>
             {' or the transaction will revert.'}
           </TYPE.italic>
@@ -109,7 +119,7 @@ export default function SwapModalHeader({
           <TYPE.italic textAlign="left" style={{ width: '100%' }}>
             {`Input is estimated. You will sell at most `}
             <b>
-              {slippageAdjustedAmounts[Field.INPUT]?.toSignificant(6)} {trade.inputAmount.currency.symbol}
+              {slippageAdjustedAmounts[Field.INPUT]?.toSignificant(6)} {getDisplaySymbol(trade.inputAmount.currency)}
             </b>
             {' or the transaction will revert.'}
           </TYPE.italic>

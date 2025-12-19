@@ -7,7 +7,7 @@ import { useTokenAllowance } from '../data/Allowances'
 import { Field } from '../state/swap/actions'
 import { useTransactionAdder, useHasPendingApproval } from '../state/transactions/hooks'
 import { computeSlippageAdjustedAmounts } from '../utils/prices'
-import { calculateGasMargin } from '../utils'
+import { calculateGasMargin, getNativeCurrencySymbol } from '../utils'
 import { useTokenContract } from './useContract'
 import { useActiveWeb3React } from './index'
 
@@ -43,6 +43,7 @@ export function useApproveCallback(
       : ApprovalState.APPROVED
   }, [amountToApprove, currentAllowance, pendingApproval, spender])
 
+  const { chainId } = useActiveWeb3React()
   const tokenContract = useTokenContract(token?.address)
   const addTransaction = useTransactionAdder()
 
@@ -83,8 +84,12 @@ export function useApproveCallback(
         gasLimit: calculateGasMargin(estimatedGas)
       })
       .then((response: TransactionResponse) => {
+        // Get the correct symbol for display (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+        const currencySymbol = amountToApprove.currency === DEV 
+          ? getNativeCurrencySymbol(chainId) 
+          : (amountToApprove.currency.symbol || '')
         addTransaction(response, {
-          summary: 'Approve ' + amountToApprove.currency.symbol,
+          summary: 'Approve ' + currencySymbol,
           approval: { tokenAddress: token.address, spender: spender }
         })
       })
@@ -92,7 +97,7 @@ export function useApproveCallback(
         console.debug('Failed to approve token', error)
         throw error
       })
-  }, [approvalState, token, tokenContract, amountToApprove, spender, addTransaction])
+  }, [approvalState, token, tokenContract, amountToApprove, spender, addTransaction, chainId])
 
   return [approvalState, approve]
 }

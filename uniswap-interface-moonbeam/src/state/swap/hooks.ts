@@ -113,7 +113,7 @@ export function useDerivedSwapInfo(): {
   v2Trade: Trade | undefined
   inputError?: string
 } {
-  const { account } = useActiveWeb3React()
+  const { account, chainId } = useActiveWeb3React()
 
   const { t } = useTranslation()
 
@@ -190,7 +190,11 @@ export function useDerivedSwapInfo(): {
   ]
 
   if (balanceIn && amountIn && balanceIn.lessThan(amountIn)) {
-    inputError = 'Insufficient ' + amountIn.currency.symbol + ' balance'
+    // Get the correct symbol for display (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+    const currencySymbol = amountIn.currency === DEV 
+      ? getNativeCurrencySymbol(chainId) 
+      : (amountIn.currency.symbol || '')
+    inputError = 'Insufficient ' + currencySymbol + ' balance'
   }
 
   return {

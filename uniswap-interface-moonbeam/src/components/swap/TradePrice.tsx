@@ -1,9 +1,11 @@
 import React from 'react'
-import { Price } from 'moonbeamswap'
+import { Price, DEV, Currency } from 'moonbeamswap'
 import { useContext } from 'react'
 import { Repeat } from 'react-feather'
 import { Text } from 'rebass'
 import { ThemeContext } from 'styled-components'
+import { useActiveWeb3React } from '../../hooks'
+import { getNativeCurrencySymbol } from '../../utils'
 import { StyledBalanceMaxMini } from './styleds'
 
 interface TradePriceProps {
@@ -14,13 +16,25 @@ interface TradePriceProps {
 
 export default function TradePrice({ price, showInverted, setShowInverted }: TradePriceProps) {
   const theme = useContext(ThemeContext)
+  const { chainId } = useActiveWeb3React()
+
+  // Get the correct symbol for display (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+  const getDisplaySymbol = (currency: Currency | undefined): string => {
+    if (!currency) return ''
+    if (currency === DEV) {
+      return getNativeCurrencySymbol(chainId)
+    }
+    return currency.symbol || ''
+  }
 
   const formattedPrice = showInverted ? price?.toSignificant(6) : price?.invert()?.toSignificant(6)
 
   const show = Boolean(price?.baseCurrency && price?.quoteCurrency)
+  const baseSymbol = getDisplaySymbol(price?.baseCurrency)
+  const quoteSymbol = getDisplaySymbol(price?.quoteCurrency)
   const label = showInverted
-    ? `${price?.quoteCurrency?.symbol} per ${price?.baseCurrency?.symbol}`
-    : `${price?.baseCurrency?.symbol} per ${price?.quoteCurrency?.symbol}`
+    ? `${quoteSymbol} per ${baseSymbol}`
+    : `${baseSymbol} per ${quoteSymbol}`
 
   return (
     <Text

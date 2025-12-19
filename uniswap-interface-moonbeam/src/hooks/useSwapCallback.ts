@@ -1,10 +1,10 @@
 import { BigNumber } from '@ethersproject/bignumber'
 import { Contract } from '@ethersproject/contracts'
-import { JSBI, Percent, Router, SwapParameters, Trade, TradeType } from 'moonbeamswap'
+import { JSBI, Percent, Router, SwapParameters, Trade, TradeType, DEV } from 'moonbeamswap'
 import { useMemo } from 'react'
 import { BIPS_BASE, DEFAULT_DEADLINE_FROM_NOW, INITIAL_ALLOWED_SLIPPAGE } from '../constants'
 import { useTransactionAdder } from '../state/transactions/hooks'
-import { calculateGasMargin, getRouterContract, isAddress, shortenAddress } from '../utils'
+import { calculateGasMargin, getRouterContract, isAddress, shortenAddress, getNativeCurrencySymbol } from '../utils'
 import isZero from '../utils/isZero'
 import { useActiveWeb3React } from './index'
 import useENS from './useENS'
@@ -181,8 +181,15 @@ export function useSwapCallback(
           ...(value && !isZero(value) ? { value, from: account } : { from: account })
         })
           .then((response: any) => {
-            const inputSymbol = trade.inputAmount.currency.symbol
-            const outputSymbol = trade.outputAmount.currency.symbol
+            // Get the correct symbol for display (NBC for DEV on NBC Chain, otherwise use currency.symbol)
+            const getDisplaySymbol = (currency: typeof trade.inputAmount.currency): string => {
+              if (currency === DEV) {
+                return getNativeCurrencySymbol(chainId)
+              }
+              return currency.symbol || ''
+            }
+            const inputSymbol = getDisplaySymbol(trade.inputAmount.currency)
+            const outputSymbol = getDisplaySymbol(trade.outputAmount.currency)
             const inputAmount = trade.inputAmount.toSignificant(3)
             const outputAmount = trade.outputAmount.toSignificant(3)
 
